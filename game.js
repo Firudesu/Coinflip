@@ -63,6 +63,7 @@ class CoinFlipGame {
         this.bank = parseInt(localStorage.getItem('bank') || '0');
         this.streakRecords = JSON.parse(localStorage.getItem('streakRecords') || '[]');
         this.achievements = JSON.parse(localStorage.getItem('achievements') || '{}');
+        this.shopUnlocked = localStorage.getItem('shopUnlocked') === 'true';
         
         // Update title based on best streak
         this.updatePlayerTitle();
