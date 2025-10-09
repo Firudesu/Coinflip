@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Coin Flip Streak</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="game-container">
+        <h1 class="game-title">COIN FLIP STREAK</h1>
+        
+        <div class="stats-container">
+            <div class="stat-box">
+                <span class="stat-label">SCORE</span>
+                <span class="stat-value" id="score">0</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">STREAK</span>
+                <span class="stat-value" id="streak">0</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">MULTIPLIER</span>
+                <span class="stat-value" id="multiplier">x1.0</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">BEST STREAK</span>
+                <span class="stat-value" id="best-streak">0</span>
+            </div>
+        </div>
+
+        <div class="coin-container">
+            <canvas id="coinCanvas" width="200" height="200"></canvas>
+            <div class="coin-shadow"></div>
+        </div>
+
+        <div class="choice-container" id="choiceContainer">
+            <button class="pixel-btn choice-btn" data-choice="heads">
+                <span class="btn-text">HEADS</span>
+            </button>
+            <button class="pixel-btn choice-btn" data-choice="tails">
+                <span class="btn-text">TAILS</span>
+            </button>
+        </div>
+
+        <div class="message-container">
+            <p id="message" class="message">CHOOSE HEADS OR TAILS</p>
+        </div>
+
+        <div class="result-display" id="resultDisplay">
+            <span id="resultText"></span>
+        </div>
+
+        <button class="pixel-btn reset-btn" id="resetBtn">RESET GAME</button>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>
