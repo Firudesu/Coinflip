@@ -155,15 +155,15 @@ CoinFlipGame.prototype.setupBattleListeners = function() {
 };
 
 CoinFlipGame.prototype.checkBattleAvailability = function() {
-    // Check if battle mode should unlock
-    if (this.streak >= 20 && !this.battleMode.unlocked) {
+    // Check if battle mode should unlock permanently at streak 10
+    if (this.streak >= 10 && !this.battleMode.unlocked) {
         this.battleMode.unlocked = true;
         this.saveBattleStats();
         this.showMessage('BATTLE MODE UNLOCKED! FIGHT OPPONENTS!');
     }
     
-    // Check if battle is available
-    if (this.battleMode.unlocked && this.streak >= 20 && this.streak % 10 === 0) {
+    // Check if battle is available every 5 streaks after unlock
+    if (this.battleMode.unlocked && this.streak >= 5 && this.streak % 5 === 0) {
         if (this.streak !== this.battleMode.lastBattleStreak) {
             this.showBattleAvailable();
             this.battleMode.lastBattleStreak = this.streak;

@@ -76,23 +76,22 @@ class CoinFlipGame {
         this.drawCoin();
         
         // Show initial message
-        this.showMessage('CHOOSE HEADS OR TAILS');
+        this.showMessage('CLICK HEADS OR TAILS TO FLIP!');
     }
     
     setupEventListeners() {
-        // Choice buttons
+        // Choice buttons - clicking immediately flips the coin
         document.querySelectorAll('.choice-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 if (!this.isFlipping) {
                     this.playerChoice = e.target.closest('.choice-btn').dataset.choice;
                     this.highlightChoice(this.playerChoice);
-                    this.showMessage('CLICK THE COIN TO FLIP!');
-                    this.canvas.classList.remove('disabled');
+                    this.flipCoin(); // Immediately flip the coin
                 }
             });
         });
         
-        // Coin click
+        // Coin click (optional - can still click coin if choice is made)
         this.canvas.addEventListener('click', () => {
             if (this.playerChoice && !this.isFlipping) {
                 this.flipCoin();
@@ -389,7 +388,7 @@ class CoinFlipGame {
             document.querySelectorAll('.choice-btn').forEach(btn => {
                 btn.classList.remove('selected');
             });
-            this.showMessage('CHOOSE HEADS OR TAILS');
+            this.showMessage('CLICK HEADS OR TAILS TO FLIP!');
         }, 2000);
     }
     
