@@ -5,10 +5,12 @@ A retro-style coin flipping game with streak tracking and score multipliers, fea
 ## How to Play
 
 1. **Choose Your Side**: Click either "HEADS" or "TAILS" button to make your prediction
-2. **Flip the Coin**: Click on the coin to flip it
+2. **Flip the Coin**: Click on the coin to flip it (50/50 random chance)
 3. **Build Your Streak**: Guess correctly to build a winning streak
 4. **Score Multiplier**: Each correct guess increases your multiplier by 0.1x
-5. **Track Your Best**: The game saves your best streak locally
+5. **Bank Your Score**: Click "BANK SCORE" to save your points before risking them
+6. **Risk vs Reward**: If you lose, you lose ALL unbaked score and streak!
+7. **Track Your Best**: The game saves your best streak and bank locally
 
 ## Features
 
