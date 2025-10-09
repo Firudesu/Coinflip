@@ -25,6 +25,13 @@ class CoinFlipGame {
         this.fireMode = false;
         this.coinEffects = [];
         
+        // Shop system
+        this.inventory = [null, null]; // Max 2 items
+        this.shopUnlocked = false;
+        this.lastShopStreak = 0;
+        this.activeEffects = {}; // Track active item effects
+        this.shopItems = this.defineShopItems();
+        
         // Titles based on best streak
         this.titles = [
             { streak: 0, title: 'NOVICE' },
@@ -111,6 +118,22 @@ class CoinFlipGame {
             this.shareStreak();
         });
         
+        // Shop button
+        document.getElementById('shopBtn').addEventListener('click', () => {
+            this.openShop();
+        });
+        
+        // Floating shop button
+        document.getElementById('floatingShopBtn').addEventListener('click', () => {
+            this.openShop();
+            document.getElementById('floatingShopBtn').style.display = 'none';
+        });
+        
+        // Close shop button
+        document.getElementById('closeShop').addEventListener('click', () => {
+            document.getElementById('shopModal').classList.remove('show');
+        });
+        
         // Modal close button
         document.getElementById('closeModal').addEventListener('click', () => {
             document.getElementById('hallOfFameModal').classList.remove('show');
@@ -139,10 +162,28 @@ class CoinFlipGame {
         this.canvas.classList.add('flipping', 'disabled');
         document.getElementById('choiceContainer').classList.add('hidden');
         
-        // Determine result (50/50 chance)
-        const result = Math.random() < 0.5 ? 'heads' : 'tails';
+        // Determine result with item effects
+        let winChance = 0.5;
+        
+        // Apply prediction buff
+        if (this.activeEffects.predictionBuff) {
+            winChance += this.activeEffects.predictionBuff;
+        }
+        
+        // Apply lucky charm (guaranteed win)
+        if (this.activeEffects.luckyCharm) {
+            winChance = 1;
+            this.activeEffects.luckyCharm = false;
+        }
+        
+        let result = Math.random() < winChance ? this.playerChoice : 
+                     (this.playerChoice === 'heads' ? 'tails' : 'heads');
+        
         const willLose = result !== this.playerChoice;
         const isEpicMoment = this.streak >= 10 && willLose;
+        
+        // Apply tactical delay
+        const hasDelay = this.activeEffects.tacticalDelay > 0;
         
         // Enhanced animation parameters (slow motion for epic fails)
         let frame = 0;
@@ -213,9 +254,37 @@ class CoinFlipGame {
         
         if (won) {
             this.streak++;
-            this.multiplier = 1.0 + (this.streak * 0.1);
+            
+            // Apply greed gauge
+            let multiplierGrowth = 0.1;
+            if (this.activeEffects.greedGauge > 0) {
+                multiplierGrowth = 0.2;
+                this.activeEffects.greedGauge--;
+            }
+            
+            // Apply freeze multiplier
+            if (this.activeEffects.freezeMultiplier && this.activeEffects.freezeMultiplier.flips > 0) {
+                this.multiplier = this.activeEffects.freezeMultiplier.value;
+                this.activeEffects.freezeMultiplier.flips--;
+                if (this.activeEffects.freezeMultiplier.flips <= 0) {
+                    delete this.activeEffects.freezeMultiplier;
+                }
+            } else {
+                this.multiplier = 1.0 + (this.streak * multiplierGrowth);
+            }
+            
             const points = Math.round(this.basePoints * this.multiplier);
             this.score += points;
+            
+            // Use up tactical delay if active
+            if (this.activeEffects.tacticalDelay > 0) {
+                this.activeEffects.tacticalDelay--;
+            }
+            
+            // Use up prediction buff
+            if (this.activeEffects.predictionBuff > 0 && !this.activeEffects.luckyCharm) {
+                this.activeEffects.predictionBuff = Math.max(0, this.activeEffects.predictionBuff - 0.05);
+            }
             
             // Check for streak milestones and announcements
             this.checkStreakMilestones();
@@ -242,6 +311,27 @@ class CoinFlipGame {
             // Show what was lost
             const lostScore = this.score;
             const lostStreak = this.streak;
+            
+            // Apply second chance
+            if (this.activeEffects.secondChance) {
+                this.streak = Math.floor(this.streak / 2);
+                this.score = Math.floor(this.score / 2);
+                this.multiplier = 1.0 + (this.streak * 0.1);
+                this.activeEffects.secondChance = false;
+                this.showMessage(`SECOND CHANCE! STREAK NOW ${this.streak}`);
+                this.updateDisplay();
+                this.updateCoinEffects();
+                return; // Don't continue with normal loss
+            }
+            
+            // Apply insurance
+            if (this.activeEffects.insurance && lostScore > 0) {
+                const recovered = Math.floor(lostScore * 0.25);
+                this.bank += recovered;
+                localStorage.setItem('bank', this.bank);
+                this.activeEffects.insurance = false;
+                this.showMessage(`INSURANCE! RECOVERED ${recovered} COINS TO BANK!`);
+            }
             
             // Check for epic fail
             if (lostStreak >= 10) {
@@ -270,6 +360,9 @@ class CoinFlipGame {
             this.score = 0;
             this.streak = 0;
             this.multiplier = 1.0;
+            
+            // Clear some active effects
+            delete this.activeEffects.freezeMultiplier;
         }
         
         this.updateDisplay();
@@ -663,6 +756,14 @@ class CoinFlipGame {
         // Enable fire mode at streak 10
         if (this.streak === 10) {
             this.enableFireMode();
+            this.shopUnlocked = true;
+            this.showShopUnlock();
+        }
+        
+        // Check for shop availability every 5 streaks after 10
+        if (this.streak >= 10 && this.streak % 5 === 0 && this.streak !== this.lastShopStreak) {
+            this.showShopAvailable();
+            this.lastShopStreak = this.streak;
         }
     }
     
@@ -1137,6 +1238,403 @@ Play at: ${window.location.href}`;
         };
         
         animate();
+    }
+    
+    // Shop System Methods
+    defineShopItems() {
+        return [
+            {
+                id: 'lucky_charm',
+                name: 'Lucky Charm',
+                icon: '🍀',
+                description: 'Guarantees your next flip is correct',
+                effect: 'Single-use safety net',
+                price: 50,
+                rarity: 'rare',
+                uses: 1,
+                apply: () => {
+                    this.activeEffects.luckyCharm = true;
+                    this.showMessage('LUCKY CHARM ACTIVE! NEXT FLIP GUARANTEED!');
+                }
+            },
+            {
+                id: 'second_chance',
+                name: 'Second Chance',
+                icon: '💖',
+                description: 'If you lose, streak drops by half instead of zero',
+                effect: 'Comeback potential',
+                price: 75,
+                rarity: 'epic',
+                uses: 1,
+                apply: () => {
+                    this.activeEffects.secondChance = true;
+                    this.showMessage('SECOND CHANCE ACTIVE!');
+                }
+            },
+            {
+                id: 'mirror_coin',
+                name: 'Mirror Coin',
+                icon: '🪞',
+                description: 'Flip twice and pick which result counts',
+                effect: 'Double the tension',
+                price: 60,
+                rarity: 'rare',
+                uses: 1,
+                apply: () => {
+                    this.activeEffects.mirrorCoin = true;
+                    this.showMessage('MIRROR COIN ACTIVE! TWO FLIPS!');
+                }
+            },
+            {
+                id: 'bank_boost',
+                name: 'Bank Boost',
+                icon: '💰',
+                description: 'Next bank gets +20% bonus',
+                effect: 'Encourages greed',
+                price: 40,
+                rarity: 'common',
+                uses: 1,
+                apply: () => {
+                    this.activeEffects.bankBoost = 1.2;
+                    this.showMessage('BANK BOOST ACTIVE! +20% ON NEXT BANK!');
+                }
+            },
+            {
+                id: 'prediction_buff',
+                name: 'Prediction Buff',
+                icon: '🔮',
+                description: 'Increases odds to 55% for next flip',
+                effect: 'Slight advantage',
+                price: 30,
+                rarity: 'common',
+                uses: 3,
+                apply: () => {
+                    this.activeEffects.predictionBuff = (this.activeEffects.predictionBuff || 0) + 0.05;
+                    this.showMessage(`PREDICTION BUFF! ${Math.round((50 + this.activeEffects.predictionBuff * 100))}% ODDS!`);
+                }
+            },
+            {
+                id: 'shadow_bet',
+                name: 'Shadow Bet',
+                icon: '👤',
+                description: 'Wager half score on secret flip. Win = x2, Lose = bust',
+                effect: 'High risk/reward',
+                price: 100,
+                rarity: 'legendary',
+                uses: 1,
+                apply: () => {
+                    this.triggerShadowBet();
+                }
+            },
+            {
+                id: 'freeze_multiplier',
+                name: 'Freeze Multi',
+                icon: '❄️',
+                description: 'Locks multiplier for 3 flips',
+                effect: 'Safe buffer',
+                price: 45,
+                rarity: 'rare',
+                uses: 1,
+                apply: () => {
+                    this.activeEffects.freezeMultiplier = { value: this.multiplier, flips: 3 };
+                    this.showMessage(`MULTIPLIER FROZEN AT x${this.multiplier.toFixed(1)} FOR 3 FLIPS!`);
+                }
+            },
+            {
+                id: 'greed_gauge',
+                name: 'Greed Gauge',
+                icon: '📈',
+                description: 'Multiplier grows +0.2 instead of +0.1',
+                effect: 'Faster rewards',
+                price: 55,
+                rarity: 'rare',
+                uses: 5,
+                apply: () => {
+                    this.activeEffects.greedGauge = (this.activeEffects.greedGauge || 0) + 5;
+                    this.showMessage('GREED GAUGE ACTIVE! FASTER MULTIPLIER!');
+                }
+            },
+            {
+                id: 'insurance',
+                name: 'Insurance',
+                icon: '🛡️',
+                description: 'Recover 25% of lost score as bankable cash',
+                effect: 'Loss protection',
+                price: 35,
+                rarity: 'common',
+                uses: 1,
+                apply: () => {
+                    this.activeEffects.insurance = true;
+                    this.showMessage('INSURANCE ACTIVE! 25% PROTECTION!');
+                }
+            },
+            {
+                id: 'tactical_delay',
+                name: 'Tactical Delay',
+                icon: '⏱️',
+                description: 'Slows coin flip for dramatic effect',
+                effect: 'Cosmetic power',
+                price: 20,
+                rarity: 'common',
+                uses: 3,
+                apply: () => {
+                    this.activeEffects.tacticalDelay = (this.activeEffects.tacticalDelay || 0) + 3;
+                    this.showMessage('TACTICAL DELAY ACTIVE! SLOW-MO FLIPS!');
+                }
+            }
+        ];
+    }
+    
+    openShop() {
+        if (this.streak < 10 && !this.shopUnlocked) {
+            this.showMessage('SHOP UNLOCKS AT 10 STREAK!');
+            return;
+        }
+        
+        const modal = document.getElementById('shopModal');
+        modal.classList.add('show');
+        
+        this.updateShopDisplay();
+        this.generateShopStock();
+    }
+    
+    updateShopDisplay() {
+        // Update bank display
+        document.getElementById('shopBank').textContent = this.bank;
+        
+        // Update status
+        const statusEl = document.getElementById('shopStatus');
+        if (this.streak >= 10 && this.streak % 5 === 0) {
+            statusEl.textContent = 'NEW ITEMS AVAILABLE!';
+            statusEl.style.color = '#4ecdc4';
+        } else {
+            const nextShop = Math.ceil(this.streak / 5) * 5;
+            statusEl.textContent = `NEXT SHOP AT ${nextShop} STREAK`;
+            statusEl.style.color = '#ff6b6b';
+        }
+        
+        // Update inventory display
+        this.updateInventoryDisplay();
+    }
+    
+    generateShopStock() {
+        const shopItemsDiv = document.getElementById('shopItems');
+        shopItemsDiv.innerHTML = '';
+        
+        // Rotate stock - show 6 random items
+        const availableItems = [...this.shopItems];
+        const stock = [];
+        
+        for (let i = 0; i < Math.min(6, availableItems.length); i++) {
+            const randomIndex = Math.floor(Math.random() * availableItems.length);
+            stock.push(availableItems.splice(randomIndex, 1)[0]);
+        }
+        
+        stock.forEach(item => {
+            const scaledPrice = Math.round(item.price * (1 + this.streak * 0.05)); // Price scales with streak
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'shop-item';
+            
+            if (this.bank < scaledPrice) {
+                itemDiv.classList.add('disabled');
+            }
+            
+            itemDiv.innerHTML = `
+                <div class="item-rarity rarity-${item.rarity}">${item.rarity.toUpperCase()}</div>
+                <div class="item-header">
+                    <span class="item-icon">${item.icon}</span>
+                    <span class="item-price">${scaledPrice} 🪙</span>
+                </div>
+                <div class="item-title">${item.name}</div>
+                <div class="item-description">${item.description}</div>
+                <div class="item-effect">${item.effect}</div>
+                <div class="item-uses">Uses: ${item.uses}</div>
+            `;
+            
+            itemDiv.addEventListener('click', () => {
+                this.purchaseItem(item, scaledPrice);
+            });
+            
+            shopItemsDiv.appendChild(itemDiv);
+        });
+    }
+    
+    purchaseItem(item, price) {
+        if (this.bank < price) {
+            this.showMessage('NOT ENOUGH COINS!');
+            return;
+        }
+        
+        // Check inventory space
+        const emptySlot = this.inventory.findIndex(slot => slot === null);
+        if (emptySlot === -1) {
+            this.showMessage('INVENTORY FULL! USE AN ITEM FIRST!');
+            return;
+        }
+        
+        // Purchase item
+        this.bank -= price;
+        localStorage.setItem('bank', this.bank);
+        
+        // Add to inventory
+        this.inventory[emptySlot] = {
+            ...item,
+            uses: item.uses
+        };
+        
+        this.showMessage(`PURCHASED ${item.name.toUpperCase()}!`);
+        this.updateDisplay();
+        this.updateShopDisplay();
+        this.generateShopStock(); // Refresh shop
+        
+        // Play purchase sound
+        try {
+            document.getElementById('celebrationSound').play();
+        } catch(e) {}
+    }
+    
+    updateInventoryDisplay() {
+        const slots = document.querySelectorAll('.inventory-slot');
+        
+        slots.forEach((slot, index) => {
+            const item = this.inventory[index];
+            
+            if (item) {
+                slot.classList.remove('empty');
+                slot.innerHTML = `
+                    <div class="item-in-slot">
+                        <span class="item-icon">${item.icon}</span>
+                        <span class="item-name">${item.name}</span>
+                        <span class="item-uses">Uses: ${item.uses}</span>
+                    </div>
+                `;
+            } else {
+                slot.classList.add('empty');
+                slot.innerHTML = '<span class="slot-empty">EMPTY</span>';
+            }
+        });
+        
+        // Update active items display
+        this.updateActiveItemsDisplay();
+    }
+    
+    updateActiveItemsDisplay() {
+        const container = document.getElementById('itemsContainer');
+        container.innerHTML = '';
+        
+        // Show active effects
+        if (Object.keys(this.activeEffects).length > 0) {
+            Object.entries(this.activeEffects).forEach(([effect, value]) => {
+                if (value && value !== true && value !== 0) {
+                    const div = document.createElement('div');
+                    div.className = 'active-item';
+                    
+                    let icon = '✨';
+                    let name = effect;
+                    let duration = '';
+                    
+                    if (effect === 'freezeMultiplier') {
+                        icon = '❄️';
+                        name = 'Frozen Multi';
+                        duration = `${value.flips} flips`;
+                    } else if (effect === 'greedGauge') {
+                        icon = '📈';
+                        name = 'Greed Gauge';
+                        duration = `${value} uses`;
+                    } else if (effect === 'tacticalDelay') {
+                        icon = '⏱️';
+                        name = 'Tactical Delay';
+                        duration = `${value} uses`;
+                    }
+                    
+                    div.innerHTML = `
+                        <span class="active-item-icon">${icon}</span>
+                        <div class="active-item-info">
+                            <span class="active-item-name">${name}</span>
+                            <span class="active-item-duration">${duration}</span>
+                        </div>
+                    `;
+                    
+                    container.appendChild(div);
+                }
+            });
+        }
+    }
+    
+    useItem(slotIndex) {
+        const item = this.inventory[slotIndex];
+        
+        if (!item) {
+            return;
+        }
+        
+        // Apply item effect
+        item.apply();
+        
+        // Reduce uses
+        item.uses--;
+        
+        if (item.uses <= 0) {
+            // Remove item from inventory
+            this.inventory[slotIndex] = null;
+        }
+        
+        // Update displays
+        this.updateInventoryDisplay();
+        this.updateShopDisplay();
+    }
+    
+    showShopUnlock() {
+        const btn = document.getElementById('floatingShopBtn');
+        btn.style.display = 'block';
+        
+        this.showMessage('SHOP UNLOCKED! BUY TACTICAL ITEMS!');
+        
+        setTimeout(() => {
+            if (btn.style.display === 'block') {
+                btn.style.display = 'none';
+            }
+        }, 5000);
+    }
+    
+    showShopAvailable() {
+        this.showMessage(`SHOP AVAILABLE! ${this.streak} STREAK!`);
+        
+        const btn = document.getElementById('floatingShopBtn');
+        btn.querySelector('.shop-text').textContent = 'SHOP AVAILABLE!';
+        btn.style.display = 'block';
+        
+        setTimeout(() => {
+            if (btn.style.display === 'block') {
+                btn.style.display = 'none';
+            }
+        }, 5000);
+    }
+    
+    triggerShadowBet() {
+        const wager = Math.floor(this.score / 2);
+        if (wager <= 0) {
+            this.showMessage('NEED SCORE TO WAGER!');
+            return;
+        }
+        
+        this.showMessage(`SHADOW BET! WAGERING ${wager} COINS!`);
+        
+        setTimeout(() => {
+            const won = Math.random() < 0.5;
+            
+            if (won) {
+                this.score += wager * 2;
+                this.showMessage(`SHADOW BET WON! +${wager * 2} COINS!`);
+                this.celebrateWin();
+            } else {
+                this.score = Math.max(0, this.score - wager);
+                this.showMessage(`SHADOW BET LOST! -${wager} COINS!`);
+                this.showLoss();
+            }
+            
+            this.updateDisplay();
+        }, 1500);
     }
 }
 

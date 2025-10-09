@@ -782,6 +782,305 @@ body {
     100% { transform: translateY(0); opacity: 0; }
 }
 
+/* Item Shop Styles */
+.shop-content {
+    background: #2a2a2a;
+    border: 4px solid #00ffff;
+    padding: 20px;
+    max-width: 800px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 0 50px rgba(0, 255, 255, 0.3);
+}
+
+.shop-title {
+    color: #00ffff;
+    font-size: 20px;
+    margin-bottom: 20px;
+    text-align: center;
+    text-shadow: 2px 2px 0 #000;
+}
+
+.shop-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 10px;
+    background: #1a1a1a;
+    border: 2px solid #4a4a4a;
+}
+
+.shop-currency {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.currency-label {
+    color: #ffd700;
+    font-size: 12px;
+}
+
+.currency-value {
+    color: #4ecdc4;
+    font-size: 16px;
+    text-shadow: 0 0 10px currentColor;
+}
+
+.shop-status {
+    color: #ff6b6b;
+    font-size: 10px;
+}
+
+.shop-main-btn {
+    background: linear-gradient(135deg, #00ffff, #0080ff);
+    font-size: 10px;
+    padding: 12px 20px;
+    box-shadow: 
+        0 4px 0 #0060a0,
+        0 6px 0 #004080,
+        0 8px 10px rgba(0, 0, 0, 0.4);
+}
+
+/* Inventory Section */
+.inventory-section {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #1a1a1a;
+    border: 2px solid #4a4a4a;
+}
+
+.inventory-title {
+    color: #ffd700;
+    font-size: 12px;
+    margin-bottom: 10px;
+}
+
+.inventory-slots {
+    display: flex;
+    gap: 10px;
+}
+
+.inventory-slot {
+    flex: 1;
+    padding: 15px;
+    background: #2a2a2a;
+    border: 2px solid #4a4a4a;
+    text-align: center;
+    min-height: 80px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.inventory-slot:hover {
+    border-color: #00ffff;
+    transform: scale(1.05);
+}
+
+.inventory-slot.empty {
+    opacity: 0.5;
+}
+
+.slot-empty {
+    color: #666;
+    font-size: 10px;
+}
+
+.item-in-slot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+.item-icon {
+    font-size: 24px;
+}
+
+.item-name {
+    color: #00ffff;
+    font-size: 8px;
+}
+
+.item-uses {
+    color: #ffd700;
+    font-size: 8px;
+}
+
+/* Shop Items Grid */
+.shop-items {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.shop-item {
+    background: #1a1a1a;
+    border: 2px solid #4a4a4a;
+    padding: 15px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.shop-item:hover:not(.disabled) {
+    border-color: #00ffff;
+    transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+}
+
+.shop-item.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.shop-item.owned {
+    border-color: #ffd700;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.2);
+}
+
+.item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.item-title {
+    color: #00ffff;
+    font-size: 10px;
+}
+
+.item-price {
+    color: #ffd700;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.item-description {
+    color: #aaa;
+    font-size: 8px;
+    margin-bottom: 5px;
+    line-height: 1.4;
+}
+
+.item-effect {
+    color: #4ecdc4;
+    font-size: 8px;
+    font-style: italic;
+}
+
+.item-rarity {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    font-size: 8px;
+    padding: 2px 5px;
+}
+
+.rarity-common { color: #888; }
+.rarity-rare { color: #00ffff; }
+.rarity-epic { color: #ff00ff; }
+.rarity-legendary { 
+    background: linear-gradient(90deg, #ff0000, #ffff00, #00ff00, #00ffff, #ff00ff);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* Active Items Display */
+.active-items {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 100;
+}
+
+.items-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.active-item {
+    background: #2a2a2a;
+    border: 2px solid #00ffff;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+    animation: itemPulse 2s infinite;
+}
+
+@keyframes itemPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+.active-item-icon {
+    font-size: 20px;
+}
+
+.active-item-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.active-item-name {
+    color: #00ffff;
+    font-size: 10px;
+}
+
+.active-item-duration {
+    color: #ffd700;
+    font-size: 8px;
+}
+
+.use-item-btn {
+    padding: 5px 10px;
+    font-size: 8px;
+    background: #4ecdc4;
+    color: #1a1a1a;
+    border: none;
+    cursor: pointer;
+    font-family: 'Press Start 2P', monospace;
+}
+
+/* Floating Shop Button */
+.floating-shop {
+    position: fixed;
+    top: 50%;
+    right: 20px;
+    transform: translateY(-50%);
+    z-index: 1000;
+    background: linear-gradient(135deg, #00ffff, #ff00ff);
+    animation: shopFloat 2s ease-in-out infinite;
+}
+
+@keyframes shopFloat {
+    0%, 100% { transform: translateY(-50%) translateX(0); }
+    50% { transform: translateY(-50%) translateX(-10px); }
+}
+
+.shop-icon {
+    font-size: 20px;
+    margin-right: 10px;
+}
+
+.shop-text {
+    font-size: 10px;
+}
+
 @media (max-width: 600px) {
     .game-title {
         font-size: 18px;

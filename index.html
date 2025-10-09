@@ -72,6 +72,7 @@
         
         <div class="button-row">
             <button class="pixel-btn hall-btn" id="hallBtn">HALL OF FAME</button>
+            <button class="pixel-btn shop-main-btn" id="shopBtn">ITEM SHOP</button>
             <button class="pixel-btn share-btn" id="shareBtn">SHARE STREAK</button>
         </div>
     </div>
@@ -98,6 +99,51 @@
             <button class="pixel-btn close-btn" id="closeModal">CLOSE</button>
         </div>
     </div>
+    
+    <!-- Item Shop Modal -->
+    <div class="modal" id="shopModal">
+        <div class="shop-content">
+            <h2 class="shop-title">TACTICAL ITEM SHOP</h2>
+            <div class="shop-header">
+                <div class="shop-currency">
+                    <span class="currency-label">BANK:</span>
+                    <span class="currency-value" id="shopBank">0</span>
+                </div>
+                <div class="shop-status">
+                    <span id="shopStatus">STREAK 10+ TO UNLOCK</span>
+                </div>
+            </div>
+            
+            <div class="inventory-section">
+                <h3 class="inventory-title">YOUR ITEMS (MAX 2)</h3>
+                <div class="inventory-slots" id="inventorySlots">
+                    <div class="inventory-slot empty" data-slot="0">
+                        <span class="slot-empty">EMPTY</span>
+                    </div>
+                    <div class="inventory-slot empty" data-slot="1">
+                        <span class="slot-empty">EMPTY</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="shop-items" id="shopItems">
+                <!-- Items will be dynamically generated -->
+            </div>
+            
+            <button class="pixel-btn close-btn" id="closeShop">CLOSE</button>
+        </div>
+    </div>
+    
+    <!-- Active Items Display -->
+    <div class="active-items" id="activeItems">
+        <div class="items-container" id="itemsContainer"></div>
+    </div>
+    
+    <!-- Shop Button (appears at streak milestones) -->
+    <button class="pixel-btn shop-btn floating-shop" id="floatingShopBtn" style="display: none;">
+        <span class="shop-icon">🛍️</span>
+        <span class="shop-text">SHOP UNLOCKED!</span>
+    </button>
     
     <!-- Fire Mode Overlay -->
     <div class="fire-mode-overlay" id="fireModeOverlay"></div>
