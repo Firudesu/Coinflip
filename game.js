@@ -85,24 +85,61 @@ class CoinFlipGame {
         // Determine result (50/50 chance)
         const result = Math.random() < 0.5 ? 'heads' : 'tails';
         
-        // Animate coin flip
-        let rotations = 0;
-        const totalRotations = 20; // Total half-rotations
-        const flipSpeed = 50; // ms per frame
+        // Enhanced animation parameters
+        let frame = 0;
+        const totalFrames = 60; // More frames for smoother animation
+        const flipSpeed = 20; // ms per frame (faster updates)
+        
+        // Add some vertical movement for more dynamic feel
+        let baseY = 0;
+        let velocity = -8; // Initial upward velocity
+        const gravity = 0.4;
         
         this.flipAnimation = setInterval(() => {
-            rotations++;
-            this.coinRotation = (rotations * Math.PI); // Half rotation per frame
+            frame++;
             
-            // Determine visible side during animation
-            const currentRotation = rotations % 4;
-            if (currentRotation === 1 || currentRotation === 2) {
-                this.coinSide = this.coinSide === 'heads' ? 'tails' : 'heads';
+            // Easing function for more natural rotation
+            const progress = frame / totalFrames;
+            const easedProgress = 1 - Math.pow(1 - progress, 3); // Cubic ease-out
+            
+            // Calculate rotation with easing
+            const totalRotation = Math.PI * 8; // 4 full rotations
+            this.coinRotation = easedProgress * totalRotation;
+            
+            // Add vertical bounce
+            if (frame < totalFrames * 0.7) {
+                velocity += gravity;
+                baseY += velocity;
+                if (baseY > 0) {
+                    baseY = 0;
+                    velocity *= -0.5; // Bounce with dampening
+                }
+            } else {
+                baseY = 0; // Settle down
             }
+            
+            // Update coin side based on rotation
+            const rotationCount = Math.floor(this.coinRotation / Math.PI);
+            this.coinSide = (rotationCount % 2 === 0) ? 
+                (result === 'heads' ? 'heads' : 'tails') : 
+                (result === 'heads' ? 'tails' : 'heads');
+            
+            // Ensure we end on the correct side
+            if (frame >= totalFrames - 5) {
+                this.coinSide = result;
+            }
+            
+            // Save and restore for vertical movement
+            const canvas = this.canvas;
+            const ctx = this.ctx;
+            ctx.save();
+            ctx.translate(0, baseY);
             
             this.drawCoin(true);
             
-            if (rotations >= totalRotations) {
+            ctx.restore();
+            
+            if (frame >= totalFrames) {
                 clearInterval(this.flipAnimation);
                 this.coinSide = result;
                 this.coinRotation = 0;
@@ -171,59 +208,128 @@ class CoinFlipGame {
         const ctx = this.ctx;
         const centerX = this.canvas.width / 2;
         const centerY = this.canvas.height / 2;
-        const radius = 80;
+        const radiusX = 80;
+        const radiusY = 60; // Base elliptical shape for perspective
         
         // Clear canvas
         ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // Apply rotation for flip animation
         ctx.save();
         ctx.translate(centerX, centerY);
         
+        // Isometric angle adjustment (slight tilt)
+        const perspectiveTilt = 0.7; // Makes coin appear tilted
+        
+        let scaleY = perspectiveTilt;
+        let thickness = 15; // Coin thickness for 3D effect
+        
         if (isFlipping) {
-            // Scale Y for 3D flip effect
-            const scaleY = Math.abs(Math.cos(this.coinRotation));
-            ctx.scale(1, scaleY);
+            // Enhanced 3D flip effect with rotation
+            const rotation = this.coinRotation;
+            scaleY = perspectiveTilt * Math.cos(rotation);
+            thickness = 15 * Math.abs(Math.sin(rotation * 0.5)) + 5;
         }
         
-        // Draw coin background
-        ctx.fillStyle = '#FFD700';
+        // Draw coin edge/thickness (3D effect)
+        if (Math.abs(scaleY) < perspectiveTilt * 0.98) {
+            // Draw the edge of the coin
+            ctx.fillStyle = '#B8860B';
+            ctx.fillRect(-radiusX, -thickness/2, radiusX * 2, thickness);
+            
+            // Add edge highlights
+            ctx.fillStyle = '#D4AF37';
+            ctx.fillRect(-radiusX, -thickness/2, radiusX * 2, 2);
+            ctx.fillRect(-radiusX, thickness/2 - 2, radiusX * 2, 2);
+            
+            // Add ridges on the edge
+            for (let i = -radiusX; i < radiusX; i += 8) {
+                ctx.strokeStyle = '#8B6914';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(i, -thickness/2);
+                ctx.lineTo(i, thickness/2);
+                ctx.stroke();
+            }
+        }
+        
+        // Draw main coin face
+        ctx.scale(1, Math.abs(scaleY));
+        
+        // Gradient for more realistic metallic look
+        const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, radiusX);
+        gradient.addColorStop(0, '#FFEB3B');
+        gradient.addColorStop(0.5, '#FFD700');
+        gradient.addColorStop(0.8, '#FFC700');
+        gradient.addColorStop(1, '#B8860B');
+        
+        // Draw coin background with ellipse for perspective
+        ctx.fillStyle = gradient;
         ctx.strokeStyle = '#B8860B';
-        ctx.lineWidth = 4;
+        ctx.lineWidth = 3;
         
         ctx.beginPath();
-        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.ellipse(0, 0, radiusX, radiusX, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
         
-        // Draw inner circle
+        // Draw inner circle with perspective
         ctx.strokeStyle = '#B8860B';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.arc(0, 0, radius - 10, 0, Math.PI * 2);
+        ctx.ellipse(0, 0, radiusX - 10, radiusX - 10, 0, 0, Math.PI * 2);
         ctx.stroke();
         
-        // Draw coin face (pixel art style text)
-        if (!isFlipping || Math.abs(Math.cos(this.coinRotation)) > 0.3) {
+        // Only show face details when coin is mostly facing us
+        if (scaleY > 0.2) {
             ctx.font = 'bold 24px "Press Start 2P"';
             ctx.fillStyle = '#8B4513';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             
+            // Adjust text position for perspective
+            const yOffset = -10 / Math.abs(scaleY);
+            
             if (this.coinSide === 'heads') {
-                // Draw "H" for heads
-                ctx.fillText('H', 0, -10);
-                // Draw a simple crown/head symbol
-                this.drawPixelCrown(ctx, 0, 15);
+                ctx.fillText('H', 0, yOffset);
+                this.drawPixelCrown(ctx, 0, 15 / Math.abs(scaleY));
             } else {
-                // Draw "T" for tails
-                ctx.fillText('T', 0, -10);
-                // Draw a simple tail symbol
-                this.drawPixelTail(ctx, 0, 15);
+                ctx.fillText('T', 0, yOffset);
+                this.drawPixelTail(ctx, 0, 15 / Math.abs(scaleY));
+            }
+        } else if (scaleY < -0.2) {
+            // Show opposite side when flipped
+            ctx.font = 'bold 24px "Press Start 2P"';
+            ctx.fillStyle = '#8B4513';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            const yOffset = -10 / Math.abs(scaleY);
+            
+            // Show opposite side
+            if (this.coinSide === 'tails') {
+                ctx.fillText('H', 0, yOffset);
+                this.drawPixelCrown(ctx, 0, 15 / Math.abs(scaleY));
+            } else {
+                ctx.fillText('T', 0, yOffset);
+                this.drawPixelTail(ctx, 0, 15 / Math.abs(scaleY));
             }
         }
         
         ctx.restore();
+        
+        // Draw shadow that changes with rotation
+        if (isFlipping) {
+            const shadowScale = 1 - Math.abs(scaleY) * 0.3;
+            const shadowOpacity = 0.3 + Math.abs(scaleY) * 0.2;
+            ctx.save();
+            ctx.translate(centerX, centerY + 90);
+            ctx.scale(shadowScale, 0.2);
+            ctx.fillStyle = `rgba(0, 0, 0, ${shadowOpacity})`;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, radiusX * 0.8, radiusX * 0.8, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
     }
     
     drawPixelCrown(ctx, x, y) {
