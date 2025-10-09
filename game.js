@@ -7,6 +7,7 @@ class CoinFlipGame {
         this.score = 0;
         this.streak = 0;
         this.bestStreak = 0;
+        this.bank = 0; // Banked currency
         this.multiplier = 1.0;
         this.basePoints = 10;
         
@@ -21,8 +22,9 @@ class CoinFlipGame {
     }
     
     init() {
-        // Load best streak from localStorage
+        // Load from localStorage
         this.bestStreak = parseInt(localStorage.getItem('bestStreak') || '0');
+        this.bank = parseInt(localStorage.getItem('bank') || '0');
         this.updateDisplay();
         
         // Set up event listeners
@@ -53,6 +55,11 @@ class CoinFlipGame {
             if (this.playerChoice && !this.isFlipping) {
                 this.flipCoin();
             }
+        });
+        
+        // Bank button
+        document.getElementById('bankBtn').addEventListener('click', () => {
+            this.bankScore();
         });
         
         // Reset button
@@ -125,8 +132,19 @@ class CoinFlipGame {
             // Add visual effects
             this.celebrateWin();
         } else {
+            // Show what was lost
+            const lostScore = this.score;
+            const lostStreak = this.streak;
+            
             this.showResult('LOSE!', false);
-            this.showMessage(`WRONG! THE COIN WAS ${result.toUpperCase()}`);
+            if (lostScore > 0) {
+                this.showMessage(`WRONG! LOST ${lostScore} POINTS & ${lostStreak} STREAK`);
+            } else {
+                this.showMessage(`WRONG! THE COIN WAS ${result.toUpperCase()}`);
+            }
+            
+            // Reset score, streak, and multiplier on loss
+            this.score = 0;
             this.streak = 0;
             this.multiplier = 1.0;
             
@@ -309,11 +327,70 @@ class CoinFlipGame {
         }, 10);
     }
     
+    bankScore() {
+        if (this.score > 0 && !this.isFlipping) {
+            const bankBtn = document.getElementById('bankBtn');
+            bankBtn.classList.add('banking');
+            
+            // Add score to bank
+            const bankedAmount = this.score;
+            this.bank += bankedAmount;
+            localStorage.setItem('bank', this.bank);
+            
+            // Show banking message
+            this.showMessage(`BANKED ${bankedAmount} COINS! SAFE FROM LOSS`);
+            
+            // Reset current score and streak
+            this.score = 0;
+            this.streak = 0;
+            this.multiplier = 1.0;
+            
+            // Update display
+            this.updateDisplay();
+            
+            // Visual feedback
+            this.celebrateBank();
+            
+            setTimeout(() => {
+                bankBtn.classList.remove('banking');
+            }, 600);
+        }
+    }
+    
+    celebrateBank() {
+        const bankDisplay = document.querySelector('.bank-display');
+        bankDisplay.style.animation = 'pulse 0.5s';
+        setTimeout(() => {
+            bankDisplay.style.animation = '';
+        }, 500);
+        
+        // Flash gold color
+        const bankValue = document.getElementById('bank');
+        bankValue.style.color = '#ffd700';
+        bankValue.style.textShadow = '0 0 20px #ffd700';
+        setTimeout(() => {
+            bankValue.style.color = '#4ecdc4';
+            bankValue.style.textShadow = '0 0 10px #4ecdc4';
+        }, 500);
+    }
+    
     updateDisplay() {
         document.getElementById('score').textContent = this.score;
         document.getElementById('streak').textContent = this.streak;
         document.getElementById('multiplier').textContent = `x${this.multiplier.toFixed(1)}`;
         document.getElementById('best-streak').textContent = this.bestStreak;
+        document.getElementById('bank').textContent = this.bank;
+        
+        // Update bank button
+        const bankBtn = document.getElementById('bankBtn');
+        const bankAmount = document.getElementById('bankAmount');
+        bankAmount.textContent = `(${this.score})`;
+        
+        if (this.score > 0) {
+            bankBtn.disabled = false;
+        } else {
+            bankBtn.disabled = true;
+        }
     }
     
     resetGame() {
@@ -323,10 +400,11 @@ class CoinFlipGame {
         this.playerChoice = null;
         this.isFlipping = false;
         this.coinSide = 'heads';
+        // Note: Bank is NOT reset - it's permanent currency
         
         this.updateDisplay();
         this.drawCoin();
-        this.showMessage('GAME RESET! CHOOSE HEADS OR TAILS');
+        this.showMessage('GAME RESET! BANK IS SAFE');
         
         // Reset UI state
         document.getElementById('choiceContainer').classList.remove('hidden');

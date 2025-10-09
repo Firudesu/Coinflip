@@ -77,6 +77,85 @@ body {
     text-shadow: 0 0 10px #4ecdc4;
 }
 
+.bank-container {
+    margin: 20px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    align-items: center;
+}
+
+.bank-display {
+    background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
+    border: 3px solid #ffd700;
+    padding: 15px 30px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 
+        0 0 20px rgba(255, 215, 0, 0.3),
+        inset 0 0 10px rgba(255, 215, 0, 0.1);
+}
+
+.bank-icon {
+    font-size: 20px;
+}
+
+.bank-label {
+    color: #ffd700;
+    font-size: 12px;
+    letter-spacing: 2px;
+}
+
+.bank-value {
+    color: #4ecdc4;
+    font-size: 18px;
+    text-shadow: 0 0 10px #4ecdc4;
+    margin-left: 10px;
+}
+
+.bank-btn {
+    background: linear-gradient(135deg, #4caf50, #45a049);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 
+        0 4px 0 #388e3c,
+        0 6px 0 #2e7d32,
+        0 8px 10px rgba(0, 0, 0, 0.4);
+}
+
+.bank-btn:hover:not(:disabled) {
+    box-shadow: 
+        0 2px 0 #388e3c,
+        0 4px 0 #2e7d32,
+        0 6px 10px rgba(0, 0, 0, 0.4);
+}
+
+.bank-btn:disabled {
+    background: linear-gradient(135deg, #666, #555);
+    box-shadow: 
+        0 4px 0 #444,
+        0 6px 0 #333,
+        0 8px 10px rgba(0, 0, 0, 0.4);
+}
+
+.bank-amount {
+    color: #ffeb3b;
+    font-size: 10px;
+}
+
+.bank-btn.banking {
+    animation: bankPulse 0.6s;
+}
+
+@keyframes bankPulse {
+    0% { transform: scale(1) translateY(0); }
+    25% { transform: scale(1.1) translateY(2px); }
+    50% { transform: scale(0.95) translateY(4px); }
+    100% { transform: scale(1) translateY(4px); }
+}
+
 .coin-container {
     position: relative;
     margin: 30px auto;
