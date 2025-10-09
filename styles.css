@@ -1624,6 +1624,241 @@ body {
     50% { filter: brightness(1.2); }
 }
 
+/* Random Events Styles */
+.event-notification {
+    position: fixed;
+    top: 10%;
+    right: -400px;
+    background: #2a2a2a;
+    border: 3px solid #ffd700;
+    padding: 15px 20px;
+    z-index: 5000;
+    transition: right 0.5s;
+    max-width: 300px;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+}
+
+.event-notification.show {
+    right: 20px;
+}
+
+.event-icon {
+    font-size: 24px;
+    margin-bottom: 5px;
+}
+
+.event-name {
+    color: #ffd700;
+    font-size: 14px;
+    margin-bottom: 5px;
+    text-shadow: 2px 2px 0 #000;
+}
+
+.event-desc {
+    color: #aaa;
+    font-size: 10px;
+}
+
+/* Event type colors */
+.event-mutation { border-color: #9c27b0; }
+.event-reward { border-color: #4caf50; }
+.event-risk { border-color: #ff5722; }
+.event-skill { border-color: #00bcd4; }
+.event-encounter { border-color: #ff9800; }
+.event-cosmetic { border-color: #e91e63; }
+.event-legendary { 
+    border-color: #ffd700;
+    background: linear-gradient(135deg, #2a2a2a, #4a4a4a);
+    animation: legendaryPulse 2s infinite;
+}
+
+@keyframes legendaryPulse {
+    0%, 100% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.5); }
+    50% { box-shadow: 0 0 50px rgba(255, 215, 0, 1); }
+}
+
+.event-result {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    background: rgba(0, 0, 0, 0.95);
+    border: 3px solid #ffd700;
+    padding: 20px 40px;
+    color: #ffd700;
+    font-size: 16px;
+    text-align: center;
+    z-index: 5001;
+    transition: transform 0.3s;
+    text-shadow: 2px 2px 0 #000;
+}
+
+.event-result.show {
+    transform: translate(-50%, -50%) scale(1);
+}
+
+/* Visual Effects */
+.glitch-effect {
+    animation: glitch 0.3s infinite;
+}
+
+@keyframes glitch {
+    0%, 100% { transform: translate(0); filter: hue-rotate(0deg); }
+    20% { transform: translate(-2px, 2px); filter: hue-rotate(90deg); }
+    40% { transform: translate(-2px, -2px); filter: hue-rotate(180deg); }
+    60% { transform: translate(2px, 2px); filter: hue-rotate(270deg); }
+    80% { transform: translate(2px, -2px); filter: hue-rotate(360deg); }
+}
+
+.static-effect {
+    position: relative;
+}
+
+.static-effect::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: repeating-linear-gradient(
+        0deg,
+        rgba(255, 255, 255, 0.03) 0px,
+        transparent 1px,
+        transparent 2px,
+        rgba(255, 255, 255, 0.03) 3px
+    );
+    animation: staticNoise 0.2s infinite;
+    pointer-events: none;
+    z-index: 100;
+}
+
+@keyframes staticNoise {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+}
+
+.time-warp {
+    animation: timeWarp 3s ease-out;
+}
+
+@keyframes timeWarp {
+    0%, 100% { 
+        filter: blur(0px) saturate(1);
+        transform: scale(1);
+    }
+    50% { 
+        filter: blur(2px) saturate(2);
+        transform: scale(1.05);
+    }
+}
+
+.eclipse-effect {
+    position: relative;
+}
+
+.eclipse-effect::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at center, transparent 20%, rgba(0, 0, 0, 0.9) 60%);
+    animation: eclipseMove 5s ease-in-out;
+    pointer-events: none;
+    z-index: 999;
+}
+
+@keyframes eclipseMove {
+    0% { opacity: 0; }
+    50% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+/* Timing Bar Mini-game */
+.timing-bar {
+    position: fixed;
+    bottom: 30%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 300px;
+    height: 40px;
+    background: #1a1a1a;
+    border: 3px solid #00bcd4;
+    z-index: 1000;
+    cursor: pointer;
+}
+
+.timing-track {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.timing-marker {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: #ffd700;
+}
+
+.timing-target {
+    position: absolute;
+    top: 0;
+    left: 45%;
+    width: 10%;
+    height: 100%;
+    background: rgba(76, 175, 80, 0.3);
+    border-left: 2px solid #4caf50;
+    border-right: 2px solid #4caf50;
+}
+
+/* Decision Modal */
+.decision-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 6000;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.decision-modal.show {
+    opacity: 1;
+}
+
+.decision-content {
+    background: #2a2a2a;
+    border: 3px solid #ff5722;
+    padding: 30px;
+    text-align: center;
+}
+
+.decision-content h3 {
+    color: #ff5722;
+    font-size: 18px;
+    margin-bottom: 15px;
+}
+
+.decision-content p {
+    color: #aaa;
+    font-size: 10px;
+    margin-bottom: 10px;
+}
+
+.decision-content button {
+    margin: 10px;
+}
+
 @media (max-width: 600px) {
     .game-title {
         font-size: 18px;

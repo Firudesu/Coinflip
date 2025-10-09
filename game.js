@@ -165,6 +165,11 @@ class CoinFlipGame {
     flipCoin() {
         if (this.isFlipping) return;
         
+        // Check for random event before flip
+        if (this.checkForRandomEvent) {
+            this.checkForRandomEvent();
+        }
+        
         this.isFlipping = true;
         this.canvas.classList.add('flipping', 'disabled');
         document.getElementById('choiceContainer').classList.add('hidden');
@@ -263,6 +268,13 @@ class CoinFlipGame {
     
     handleResult(result) {
         const won = result === this.playerChoice;
+        
+        // Process active event if any
+        if (this.currentEvent && this.currentEvent.execute) {
+            if (this.currentEvent.type !== 'skill' && this.currentEvent.type !== 'encounter') {
+                this.currentEvent.execute(won);
+            }
+        }
         
         if (won) {
             this.streak++;
@@ -408,6 +420,12 @@ class CoinFlipGame {
             document.querySelectorAll('.choice-btn').forEach(btn => {
                 btn.classList.remove('selected');
             });
+            
+            // Clean up event effects if any
+            if (this.cleanupEventEffects) {
+                this.cleanupEventEffects();
+            }
+            
             this.showMessage('CLICK HEADS OR TAILS TO FLIP!');
         }, 2000);
     }
