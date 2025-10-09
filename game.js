@@ -774,9 +774,10 @@ class CoinFlipGame {
             this.showStreakAnnouncement();
         }
         
-        // Enable shop at streak 5
-        if (this.streak === 5) {
+        // Enable shop permanently at streak 5 (first time only)
+        if (this.streak >= 5 && !this.shopUnlocked) {
             this.shopUnlocked = true;
+            localStorage.setItem('shopUnlocked', 'true');
             this.showShopUnlock();
         }
         
@@ -785,8 +786,8 @@ class CoinFlipGame {
             this.enableFireMode();
         }
         
-        // Check for shop availability every 5 streaks after 5
-        if (this.streak >= 5 && this.streak % 5 === 0 && this.streak !== this.lastShopStreak) {
+        // Check for shop availability every 3 streaks if shop is unlocked
+        if (this.shopUnlocked && this.streak >= 3 && this.streak % 3 === 0 && this.streak !== this.lastShopStreak) {
             this.showShopAvailable();
             this.lastShopStreak = this.streak;
         }
