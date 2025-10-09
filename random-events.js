@@ -400,16 +400,19 @@ CoinFlipGame.prototype.checkForRandomEvent = function() {
     // Don't trigger during battles or other special modes
     if (this.battleMode?.battleInProgress || this.eventActive) return false;
     
-    // Calculate event chance
-    let chance = this.eventChance;
+    // Calculate event chance (start at 10% for testing, was 8%)
+    let chance = 0.10;
     
     // Increase chance based on streak
     if (this.streak > 10) chance += 0.02;
     if (this.streak > 20) chance += 0.03;
     if (this.streak > 30) chance += 0.05;
     
-    // Roll for event
-    if (Math.random() > chance) return false;
+    const roll = Math.random();
+    console.log(`Event check: rolled ${roll.toFixed(3)} vs chance ${chance.toFixed(3)}`);
+    
+    // Roll for event (fixed: should be < not >)
+    if (roll > chance) return false;
     
     // Filter available events based on streak
     const availableEvents = Object.entries(this.randomEvents).filter(([key, event]) => {
@@ -625,6 +628,7 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => {
         if (window.game) {
             window.game.initRandomEvents();
+            console.log('Random events initialized');
         }
     }, 300);
 });

@@ -80,13 +80,25 @@ class CoinFlipGame {
     }
     
     setupEventListeners() {
-        // Choice buttons - clicking immediately flips the coin
+        // Choice buttons - clicking immediately flips the coin or triggers battle
         document.querySelectorAll('.choice-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 if (!this.isFlipping) {
                     this.playerChoice = e.target.closest('.choice-btn').dataset.choice;
                     this.highlightChoice(this.playerChoice);
-                    this.flipCoin(); // Immediately flip the coin
+                    
+                    // Check for battle trigger
+                    if (this.checkForBattle && this.checkForBattle()) {
+                        // Battle triggered, don't flip
+                        this.showMessage('BATTLE INCOMING!');
+                        setTimeout(() => {
+                            this.openBattleMode();
+                            document.getElementById('floatingBattleBtn').style.display = 'none';
+                        }, 1000);
+                    } else {
+                        // Normal flip
+                        this.flipCoin();
+                    }
                 }
             });
         });
@@ -167,7 +179,12 @@ class CoinFlipGame {
         
         // Check for random event before flip
         if (this.checkForRandomEvent) {
-            this.checkForRandomEvent();
+            const eventTriggered = this.checkForRandomEvent();
+            if (eventTriggered) {
+                console.log('Random event triggered!');
+            }
+        } else {
+            console.log('Random events not initialized yet');
         }
         
         this.isFlipping = true;

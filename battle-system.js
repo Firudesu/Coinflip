@@ -159,16 +159,30 @@ CoinFlipGame.prototype.checkBattleAvailability = function() {
     if (this.streak >= 10 && !this.battleMode.unlocked) {
         this.battleMode.unlocked = true;
         this.saveBattleStats();
-        this.showMessage('BATTLE MODE UNLOCKED! FIGHT OPPONENTS!');
+        this.showMessage('BATTLE MODE UNLOCKED! BATTLES NOW AVAILABLE!');
+    }
+}
+
+CoinFlipGame.prototype.checkForBattle = function() {
+    // Don't trigger during battles or if not unlocked
+    if (!this.battleMode || !this.battleMode.unlocked || this.battleMode.battleInProgress) {
+        return false;
     }
     
-    // Check if battle is available every 5 streaks after unlock
-    if (this.battleMode.unlocked && this.streak >= 5 && this.streak % 5 === 0) {
-        if (this.streak !== this.battleMode.lastBattleStreak) {
-            this.showBattleAvailable();
-            this.battleMode.lastBattleStreak = this.streak;
-        }
+    // Base chance for battle (increases with streak)
+    let battleChance = 0.05; // 5% base chance
+    
+    if (this.streak >= 20) battleChance = 0.08;
+    if (this.streak >= 30) battleChance = 0.10;
+    if (this.streak >= 40) battleChance = 0.12;
+    
+    // Roll for battle
+    if (Math.random() < battleChance) {
+        this.showBattleAvailable();
+        return true;
     }
+    
+    return false;
 };
 
 CoinFlipGame.prototype.showBattleAvailable = function() {
@@ -370,6 +384,11 @@ CoinFlipGame.prototype.endBattle = function(playerWon) {
         
         this.saveBattleStats();
         this.updateDisplay();
+        
+        // Check workshop unlock
+        if (this.checkWorkshopUnlock) {
+            this.checkWorkshopUnlock();
+        }
         
         // Victory effects
         this.launchFireworks();
