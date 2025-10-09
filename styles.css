@@ -597,6 +597,191 @@ body {
     50% { filter: drop-shadow(0 0 70px #ff0000); }
 }
 
+/* Epic Celebration Overlay */
+.celebration-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 4000;
+    display: none;
+}
+
+.celebration-overlay.active {
+    display: block;
+    animation: celebrationFlash 0.5s ease-out;
+}
+
+@keyframes celebrationFlash {
+    0% { background: rgba(255, 215, 0, 0.8); }
+    100% { background: transparent; }
+}
+
+#fireworksCanvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.celebration-text {
+    position: absolute;
+    top: 30%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 48px;
+    color: #ffd700;
+    text-shadow: 
+        4px 4px 0 #ff6b6b,
+        8px 8px 0 #4ecdc4,
+        12px 12px 20px #000;
+    animation: epicZoom 1s ease-out;
+    white-space: nowrap;
+}
+
+@keyframes epicZoom {
+    0% { 
+        transform: translate(-50%, -50%) scale(0) rotate(-180deg);
+        opacity: 0;
+    }
+    50% { 
+        transform: translate(-50%, -50%) scale(1.5) rotate(10deg);
+    }
+    100% { 
+        transform: translate(-50%, -50%) scale(1) rotate(0deg);
+        opacity: 1;
+    }
+}
+
+/* Epic Fail Overlay */
+.epic-fail-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0);
+    z-index: 4000;
+    display: none;
+    pointer-events: none;
+}
+
+.epic-fail-overlay.active {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    animation: fadeToBlack 3s forwards;
+}
+
+@keyframes fadeToBlack {
+    0% { background: rgba(0, 0, 0, 0); }
+    30% { background: rgba(0, 0, 0, 0.9); }
+    70% { background: rgba(0, 0, 0, 0.9); }
+    100% { background: rgba(0, 0, 0, 0); }
+}
+
+.fail-container {
+    text-align: center;
+    animation: failDrop 3s ease-out;
+}
+
+@keyframes failDrop {
+    0% { 
+        transform: translateY(-100px) scale(0.5);
+        opacity: 0;
+    }
+    30% {
+        transform: translateY(0) scale(1.2);
+        opacity: 1;
+    }
+    40% {
+        transform: translateY(0) scale(1);
+    }
+    70% {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(50px) scale(0.8);
+        opacity: 0;
+    }
+}
+
+.fail-text {
+    font-size: 72px;
+    color: #ff0000;
+    text-shadow: 
+        0 0 20px #ff0000,
+        4px 4px 0 #8b0000,
+        8px 8px 40px #000;
+    margin-bottom: 20px;
+    animation: failPulse 0.5s ease-out;
+}
+
+@keyframes failPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+.fail-streak {
+    font-size: 36px;
+    color: #fff;
+    text-shadow: 
+        2px 2px 0 #ff0000,
+        4px 4px 20px #000;
+    margin-bottom: 10px;
+}
+
+.fail-message {
+    font-size: 14px;
+    color: #888;
+    text-shadow: 2px 2px 10px #000;
+}
+
+/* Slow motion effect */
+.slow-motion-flip {
+    animation-duration: 3s !important;
+}
+
+/* Screen shake for epic fail */
+@keyframes screenShake {
+    0%, 100% { transform: translate(0, 0); }
+    10% { transform: translate(-10px, -5px); }
+    20% { transform: translate(10px, 5px); }
+    30% { transform: translate(-5px, 10px); }
+    40% { transform: translate(5px, -10px); }
+    50% { transform: translate(-10px, 5px); }
+    60% { transform: translate(10px, -5px); }
+    70% { transform: translate(-5px, -10px); }
+    80% { transform: translate(5px, 10px); }
+    90% { transform: translate(-2px, -2px); }
+}
+
+.game-container.epic-fail-shake {
+    animation: screenShake 0.5s;
+}
+
+/* Crowd effect */
+.crowd-wave {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 100px;
+    background: linear-gradient(transparent, rgba(255, 215, 0, 0.3));
+    animation: crowdWave 1s ease-out;
+    pointer-events: none;
+}
+
+@keyframes crowdWave {
+    0% { transform: translateY(100px); opacity: 0; }
+    50% { opacity: 1; }
+    100% { transform: translateY(0); opacity: 0; }
+}
+
 @media (max-width: 600px) {
     .game-title {
         font-size: 18px;

@@ -141,11 +141,13 @@ class CoinFlipGame {
         
         // Determine result (50/50 chance)
         const result = Math.random() < 0.5 ? 'heads' : 'tails';
+        const willLose = result !== this.playerChoice;
+        const isEpicMoment = this.streak >= 10 && willLose;
         
-        // Enhanced animation parameters
+        // Enhanced animation parameters (slow motion for epic fails)
         let frame = 0;
-        const totalFrames = 60; // More frames for smoother animation
-        const flipSpeed = 20; // ms per frame (faster updates)
+        const totalFrames = isEpicMoment ? 120 : 60; // Double frames for epic fail
+        const flipSpeed = isEpicMoment ? 25 : 20; // Slower for epic fail
         
         // Add some vertical movement for more dynamic feel
         let baseY = 0;
@@ -241,6 +243,20 @@ class CoinFlipGame {
             const lostScore = this.score;
             const lostStreak = this.streak;
             
+            // Check for epic fail
+            if (lostStreak >= 10) {
+                this.triggerEpicFail(lostStreak, lostScore);
+            } else {
+                // Normal fail
+                this.showResult('LOSE!', false);
+                if (lostScore > 0) {
+                    this.showMessage(`WRONG! LOST ${lostScore} POINTS & ${lostStreak} STREAK`);
+                } else {
+                    this.showMessage(`WRONG! THE COIN WAS ${result.toUpperCase()}`);
+                }
+                this.showLoss();
+            }
+            
             // Save streak record if it was significant
             if (lostStreak >= 3) {
                 this.saveStreakRecord(lostStreak, lostScore);
@@ -250,20 +266,10 @@ class CoinFlipGame {
             this.disableFireMode();
             this.updateCoinEffects();
             
-            this.showResult('LOSE!', false);
-            if (lostScore > 0) {
-                this.showMessage(`WRONG! LOST ${lostScore} POINTS & ${lostStreak} STREAK`);
-            } else {
-                this.showMessage(`WRONG! THE COIN WAS ${result.toUpperCase()}`);
-            }
-            
             // Reset score, streak, and multiplier on loss
             this.score = 0;
             this.streak = 0;
             this.multiplier = 1.0;
-            
-            // Add visual effects
-            this.showLoss();
         }
         
         this.updateDisplay();
@@ -552,22 +558,35 @@ class CoinFlipGame {
             
             // Add score to bank
             const bankedAmount = this.score;
+            const bankedStreak = this.streak;
             this.bank += bankedAmount;
             localStorage.setItem('bank', this.bank);
             
-            // Show banking message
-            this.showMessage(`BANKED ${bankedAmount} COINS! SAFE FROM LOSS`);
+            // Check for epic bank celebration
+            if (bankedStreak >= 10) {
+                this.triggerEpicBankCelebration(bankedStreak, bankedAmount);
+            } else {
+                // Normal banking
+                this.showMessage(`BANKED ${bankedAmount} COINS! SAFE FROM LOSS`);
+                this.celebrateBank();
+            }
+            
+            // Save streak record if significant
+            if (bankedStreak >= 3) {
+                this.saveStreakRecord(bankedStreak, bankedAmount);
+            }
             
             // Reset current score and streak
             this.score = 0;
             this.streak = 0;
             this.multiplier = 1.0;
             
+            // Disable fire mode if active
+            this.disableFireMode();
+            this.updateCoinEffects();
+            
             // Update display
             this.updateDisplay();
-            
-            // Visual feedback
-            this.celebrateBank();
             
             setTimeout(() => {
                 bankBtn.classList.remove('banking');
@@ -930,6 +949,194 @@ Play at: ${window.location.href}`;
         document.body.removeChild(textarea);
         
         this.showMessage('STATS COPIED TO CLIPBOARD!');
+    }
+    
+    // Epic celebration and fail methods
+    triggerEpicBankCelebration(streak, amount) {
+        // Play celebration sound
+        try {
+            document.getElementById('celebrationSound').play();
+        } catch(e) {}
+        
+        // Show celebration overlay
+        const overlay = document.getElementById('celebrationOverlay');
+        const text = document.getElementById('celebrationText');
+        
+        let message = `BANKED ${streak} STREAK!`;
+        if (streak >= 50) {
+            message = `LEGENDARY BANK! ${amount} COINS!`;
+        } else if (streak >= 25) {
+            message = `MASSIVE BANK! ${amount} COINS!`;
+        } else {
+            message = `BIG BANK! ${amount} COINS!`;
+        }
+        
+        text.textContent = message;
+        overlay.classList.add('active');
+        
+        // Trigger fireworks
+        this.launchFireworks();
+        
+        // Add crowd wave effect
+        const wave = document.createElement('div');
+        wave.className = 'crowd-wave';
+        document.body.appendChild(wave);
+        
+        // Screen flash effect
+        document.getElementById('gameContainer').style.animation = 'celebrationFlash 0.5s';
+        
+        setTimeout(() => {
+            overlay.classList.remove('active');
+            wave.remove();
+            document.getElementById('gameContainer').style.animation = '';
+        }, 3000);
+    }
+    
+    triggerEpicFail(streak, score) {
+        // Play fail sound
+        try {
+            document.getElementById('failSound').play();
+        } catch(e) {}
+        
+        // Show epic fail overlay
+        const overlay = document.getElementById('epicFailOverlay');
+        const failStreak = document.getElementById('failStreak');
+        const failMessage = document.getElementById('failMessage');
+        
+        failStreak.textContent = `STREAK ${streak}`;
+        
+        let message = 'SO CLOSE...';
+        if (streak >= 50) {
+            message = 'LEGENDARY LOSS';
+        } else if (streak >= 30) {
+            message = 'DEVASTATING';
+        } else if (streak >= 20) {
+            message = 'HEARTBREAKING';
+        }
+        failMessage.textContent = message;
+        
+        overlay.classList.add('active');
+        
+        // Add screen shake
+        document.getElementById('gameContainer').classList.add('epic-fail-shake');
+        
+        // Dramatic pause before showing result
+        setTimeout(() => {
+            this.showResult('RIP!', false);
+        }, 1000);
+        
+        setTimeout(() => {
+            overlay.classList.remove('active');
+            document.getElementById('gameContainer').classList.remove('epic-fail-shake');
+        }, 3000);
+    }
+    
+    launchFireworks() {
+        const canvas = document.getElementById('fireworksCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        const fireworks = [];
+        const particles = [];
+        
+        // Create firework class
+        class Firework {
+            constructor(x, y) {
+                this.x = x;
+                this.y = canvas.height;
+                this.targetY = y;
+                this.speed = 10;
+                this.exploded = false;
+            }
+            
+            update() {
+                if (!this.exploded) {
+                    this.y -= this.speed;
+                    if (this.y <= this.targetY) {
+                        this.explode();
+                        this.exploded = true;
+                    }
+                }
+            }
+            
+            explode() {
+                const colors = ['#FFD700', '#FF6B6B', '#4ECDC4', '#FFEB3B', '#FF00FF'];
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                
+                for (let i = 0; i < 30; i++) {
+                    const angle = (Math.PI * 2 / 30) * i;
+                    const velocity = 2 + Math.random() * 3;
+                    particles.push({
+                        x: this.x,
+                        y: this.y,
+                        vx: Math.cos(angle) * velocity,
+                        vy: Math.sin(angle) * velocity,
+                        color: color,
+                        size: 3 + Math.random() * 3,
+                        life: 1
+                    });
+                }
+            }
+            
+            draw() {
+                if (!this.exploded) {
+                    ctx.fillStyle = '#FFF';
+                    ctx.fillRect(this.x - 2, this.y - 2, 4, 4);
+                }
+            }
+        }
+        
+        // Launch multiple fireworks
+        for (let i = 0; i < 5; i++) {
+            setTimeout(() => {
+                const x = Math.random() * canvas.width;
+                const y = 100 + Math.random() * 200;
+                fireworks.push(new Firework(x, y));
+            }, i * 200);
+        }
+        
+        // Animation loop
+        let animationId;
+        const animate = () => {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Update and draw fireworks
+            for (let i = fireworks.length - 1; i >= 0; i--) {
+                fireworks[i].update();
+                fireworks[i].draw();
+                if (fireworks[i].exploded) {
+                    fireworks.splice(i, 1);
+                }
+            }
+            
+            // Update and draw particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.1; // gravity
+                p.life -= 0.02;
+                
+                if (p.life <= 0) {
+                    particles.splice(i, 1);
+                } else {
+                    ctx.globalAlpha = p.life;
+                    ctx.fillStyle = p.color;
+                    ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+                    ctx.globalAlpha = 1;
+                }
+            }
+            
+            if (fireworks.length > 0 || particles.length > 0) {
+                animationId = requestAnimationFrame(animate);
+            } else {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        };
+        
+        animate();
     }
 }
 
