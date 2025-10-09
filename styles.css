@@ -1394,6 +1394,236 @@ body {
     background: linear-gradient(135deg, #2a2a2a, #4a4a4a);
 }
 
+/* Workshop Styles */
+.workshop-btn {
+    background: linear-gradient(135deg, #9c27b0, #673ab7);
+    font-size: 10px;
+    padding: 12px 20px;
+    box-shadow: 
+        0 4px 0 #7b1fa2,
+        0 6px 0 #512da8,
+        0 8px 10px rgba(0, 0, 0, 0.4);
+}
+
+.workshop-content {
+    background: #2a2a2a;
+    border: 4px solid #9c27b0;
+    padding: 20px;
+    max-width: 900px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 0 50px rgba(156, 39, 176, 0.5);
+}
+
+.workshop-title {
+    color: #9c27b0;
+    font-size: 20px;
+    margin-bottom: 20px;
+    text-align: center;
+    text-shadow: 2px 2px 0 #000;
+}
+
+.workshop-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #1a1a1a;
+    border: 2px solid #4a4a4a;
+}
+
+.workshop-tier {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.tier-label {
+    color: #9c27b0;
+    font-size: 12px;
+}
+
+.tier-value {
+    color: #ffd700;
+    font-size: 16px;
+    text-shadow: 0 0 10px currentColor;
+}
+
+/* Upgrade Categories */
+.upgrade-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    justify-content: center;
+}
+
+.upgrade-tab {
+    font-family: 'Press Start 2P', monospace;
+    background: #3a3a3a;
+    color: #888;
+    border: 2px solid #4a4a4a;
+    padding: 10px 20px;
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.upgrade-tab.active {
+    background: #9c27b0;
+    color: #fff;
+    border-color: #9c27b0;
+}
+
+.upgrades-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.upgrade-item {
+    background: #1a1a1a;
+    border: 2px solid #4a4a4a;
+    padding: 15px;
+    display: flex;
+    gap: 15px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.upgrade-item:hover:not(.disabled):not(.maxed) {
+    border-color: #9c27b0;
+    transform: scale(1.05);
+}
+
+.upgrade-item.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.upgrade-item.maxed {
+    border-color: #ffd700;
+    background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
+}
+
+.upgrade-icon {
+    font-size: 32px;
+}
+
+.upgrade-details {
+    flex: 1;
+}
+
+.upgrade-name {
+    color: #9c27b0;
+    font-size: 12px;
+    margin-bottom: 5px;
+}
+
+.upgrade-level {
+    color: #ffd700;
+    font-size: 10px;
+    margin-bottom: 5px;
+}
+
+.upgrade-effect {
+    color: #4ecdc4;
+    font-size: 8px;
+}
+
+.upgrade-cost {
+    color: #ffd700;
+    font-size: 12px;
+    align-self: center;
+}
+
+/* Upgrade Info */
+.upgrade-info {
+    background: #1a1a1a;
+    border: 2px solid #4a4a4a;
+    padding: 20px;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.selected-upgrade h3 {
+    color: #9c27b0;
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+.selected-upgrade p {
+    color: #aaa;
+    font-size: 10px;
+    margin-bottom: 10px;
+}
+
+.selected-upgrade div {
+    color: #4ecdc4;
+    font-size: 10px;
+    margin: 5px 0;
+}
+
+.purchase-upgrade-btn {
+    margin-top: 15px;
+    background: linear-gradient(135deg, #4caf50, #45a049);
+    padding: 12px 24px;
+}
+
+.refund-btn {
+    background: linear-gradient(135deg, #ff9800, #f57c00);
+    padding: 10px 20px;
+    font-size: 10px;
+}
+
+/* Workshop Stats */
+.workshop-stats {
+    background: #1a1a1a;
+    border: 2px solid #4a4a4a;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.workshop-stats h3 {
+    color: #9c27b0;
+    font-size: 12px;
+    margin-bottom: 10px;
+}
+
+.bonus-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.bonus-item {
+    color: #4ecdc4;
+    font-size: 10px;
+    padding: 5px;
+    background: #2a2a2a;
+}
+
+/* Upgrade Glow Effects */
+.upgrade-glow-1 {
+    box-shadow: 0 0 20px rgba(156, 39, 176, 0.3);
+}
+
+.upgrade-glow-2 {
+    box-shadow: 0 0 30px rgba(156, 39, 176, 0.5);
+    animation: upgradeGlow 2s infinite;
+}
+
+.upgrade-glow-3 {
+    box-shadow: 0 0 40px rgba(156, 39, 176, 0.7);
+    animation: upgradeGlow 1s infinite;
+}
+
+@keyframes upgradeGlow {
+    0%, 100% { filter: brightness(1); }
+    50% { filter: brightness(1.2); }
+}
+
 @media (max-width: 600px) {
     .game-title {
         font-size: 18px;

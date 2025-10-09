@@ -169,8 +169,13 @@ class CoinFlipGame {
         this.canvas.classList.add('flipping', 'disabled');
         document.getElementById('choiceContainer').classList.add('hidden');
         
-        // Determine result with item effects
+        // Determine result with item effects and upgrades
         let winChance = 0.5;
+        
+        // Apply upgrade bonus
+        if (this.getUpgradeBonus) {
+            winChance += this.getUpgradeBonus('winChance');
+        }
         
         // Apply prediction buff
         if (this.activeEffects.predictionBuff) {
@@ -324,6 +329,12 @@ class CoinFlipGame {
             const lostScore = this.score;
             const lostStreak = this.streak;
             
+            // Check streak saver upgrade
+            if (this.getUpgradeBonus && Math.random() < this.getUpgradeBonus('streakSaver')) {
+                this.showMessage('STREAK SAVED BY UPGRADE!');
+                return; // Don't lose!
+            }
+            
             // Apply second chance
             if (this.activeEffects.secondChance) {
                 this.streak = Math.floor(this.streak / 2);
@@ -368,10 +379,19 @@ class CoinFlipGame {
             this.disableFireMode();
             this.updateCoinEffects();
             
+            // Check multiplier guard upgrade
+            const keepMultiplier = this.getUpgradeBonus && Math.random() < this.getUpgradeBonus('multiplierGuard');
+            
             // Reset score, streak, and multiplier on loss
             this.score = 0;
             this.streak = 0;
-            this.multiplier = 1.0;
+            
+            if (keepMultiplier) {
+                this.showMessage('MULTIPLIER PROTECTED!');
+                // Keep current multiplier
+            } else {
+                this.multiplier = 1.0;
+            }
             
             // Clear some active effects
             delete this.activeEffects.freezeMultiplier;

@@ -73,6 +73,7 @@
         <div class="button-row">
             <button class="pixel-btn hall-btn" id="hallBtn">HALL OF FAME</button>
             <button class="pixel-btn shop-main-btn" id="shopBtn">ITEM SHOP</button>
+            <button class="pixel-btn workshop-btn" id="workshopBtn">WORKSHOP</button>
             <button class="pixel-btn share-btn" id="shareBtn">SHARE STREAK</button>
         </div>
     </div>
@@ -150,6 +151,51 @@
         <span class="battle-icon">⚔️</span>
         <span class="battle-text">BATTLE READY!</span>
     </button>
+    
+    <!-- Workshop Modal -->
+    <div class="modal" id="workshopModal">
+        <div class="workshop-content">
+            <h2 class="workshop-title">COIN WORKSHOP</h2>
+            <div class="workshop-header">
+                <div class="workshop-currency">
+                    <span class="currency-label">BANK:</span>
+                    <span class="currency-value" id="workshopBank">0</span>
+                </div>
+                <div class="workshop-tier">
+                    <span class="tier-label">TIER:</span>
+                    <span class="tier-value" id="workshopTier">1</span>
+                </div>
+            </div>
+            
+            <div class="upgrade-categories">
+                <div class="upgrade-tabs">
+                    <button class="upgrade-tab active" data-category="basic">BASIC</button>
+                    <button class="upgrade-tab" data-category="advanced">ADVANCED</button>
+                    <button class="upgrade-tab" data-category="master">MASTER</button>
+                </div>
+                
+                <div class="upgrades-list" id="upgradesList">
+                    <!-- Upgrades will be dynamically generated -->
+                </div>
+            </div>
+            
+            <div class="upgrade-info">
+                <div class="selected-upgrade" id="selectedUpgrade">
+                    <h3>SELECT AN UPGRADE</h3>
+                    <p>Choose an upgrade to see details</p>
+                </div>
+                <button class="pixel-btn purchase-upgrade-btn" id="purchaseUpgradeBtn" disabled>PURCHASE</button>
+                <button class="pixel-btn refund-btn" id="refundBtn">REFUND MODE</button>
+            </div>
+            
+            <div class="workshop-stats">
+                <h3>CURRENT BONUSES</h3>
+                <div class="bonus-list" id="bonusList"></div>
+            </div>
+            
+            <button class="pixel-btn close-btn" id="closeWorkshop">CLOSE</button>
+        </div>
+    </div>
     
     <!-- Battle Mode Modal -->
     <div class="modal" id="battleModal">
@@ -267,5 +313,6 @@
 
     <script src="game.js"></script>
     <script src="battle-system.js"></script>
+    <script src="upgrade-system.js"></script>
 </body>
 </html>
