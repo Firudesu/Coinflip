@@ -18,6 +18,35 @@ class CoinFlipGame {
         this.coinRotation = 0;
         this.flipAnimation = null;
         
+        // New features
+        this.streakRecords = [];
+        this.achievements = {};
+        this.playerTitle = 'NOVICE';
+        this.fireMode = false;
+        this.coinEffects = [];
+        
+        // Titles based on best streak
+        this.titles = [
+            { streak: 0, title: 'NOVICE' },
+            { streak: 5, title: 'COIN FLIPPER' },
+            { streak: 10, title: 'LUCKY ONE' },
+            { streak: 15, title: 'THE LUCKY' },
+            { streak: 25, title: 'PROBABILITY BREAKER' },
+            { streak: 50, title: 'COIN GOD' },
+            { streak: 100, title: 'INFINITY MASTER' }
+        ];
+        
+        // Achievement definitions
+        this.achievementDefs = [
+            { id: 'first_win', title: 'FIRST WIN', desc: 'Win your first flip', threshold: 1 },
+            { id: 'streak_5', title: 'HOT HAND', desc: 'Reach 5 streak', threshold: 5 },
+            { id: 'streak_10', title: 'ON FIRE', desc: 'Reach 10 streak', threshold: 10 },
+            { id: 'streak_25', title: 'UNSTOPPABLE', desc: 'Reach 25 streak', threshold: 25 },
+            { id: 'streak_50', title: 'LEGENDARY', desc: 'Reach 50 streak', threshold: 50 },
+            { id: 'bank_100', title: 'BANKER', desc: 'Bank 100 coins', threshold: 100 },
+            { id: 'bank_1000', title: 'RICH', desc: 'Bank 1000 coins', threshold: 1000 }
+        ];
+        
         this.init();
     }
     
@@ -25,6 +54,11 @@ class CoinFlipGame {
         // Load from localStorage
         this.bestStreak = parseInt(localStorage.getItem('bestStreak') || '0');
         this.bank = parseInt(localStorage.getItem('bank') || '0');
+        this.streakRecords = JSON.parse(localStorage.getItem('streakRecords') || '[]');
+        this.achievements = JSON.parse(localStorage.getItem('achievements') || '{}');
+        
+        // Update title based on best streak
+        this.updatePlayerTitle();
         this.updateDisplay();
         
         // Set up event listeners
@@ -65,6 +99,29 @@ class CoinFlipGame {
         // Reset button
         document.getElementById('resetBtn').addEventListener('click', () => {
             this.resetGame();
+        });
+        
+        // Hall of Fame button
+        document.getElementById('hallBtn').addEventListener('click', () => {
+            this.showHallOfFame();
+        });
+        
+        // Share button
+        document.getElementById('shareBtn').addEventListener('click', () => {
+            this.shareStreak();
+        });
+        
+        // Modal close button
+        document.getElementById('closeModal').addEventListener('click', () => {
+            document.getElementById('hallOfFameModal').classList.remove('show');
+        });
+        
+        // Tab buttons
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const tab = e.target.dataset.tab;
+                this.switchTab(tab);
+            });
         });
     }
     
@@ -158,10 +215,21 @@ class CoinFlipGame {
             const points = Math.round(this.basePoints * this.multiplier);
             this.score += points;
             
+            // Check for streak milestones and announcements
+            this.checkStreakMilestones();
+            
+            // Update best streak and title
             if (this.streak > this.bestStreak) {
                 this.bestStreak = this.streak;
                 localStorage.setItem('bestStreak', this.bestStreak);
+                this.updatePlayerTitle();
             }
+            
+            // Check achievements
+            this.checkAchievements();
+            
+            // Update coin effects based on streak
+            this.updateCoinEffects();
             
             this.showResult('WIN!', true);
             this.showMessage(`CORRECT! +${points} POINTS`);
@@ -172,6 +240,15 @@ class CoinFlipGame {
             // Show what was lost
             const lostScore = this.score;
             const lostStreak = this.streak;
+            
+            // Save streak record if it was significant
+            if (lostStreak >= 3) {
+                this.saveStreakRecord(lostStreak, lostScore);
+            }
+            
+            // Disable fire mode
+            this.disableFireMode();
+            this.updateCoinEffects();
             
             this.showResult('LOSE!', false);
             if (lostScore > 0) {
@@ -214,6 +291,11 @@ class CoinFlipGame {
         // Clear canvas
         ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
+        // Draw special effects based on streak
+        if (this.streak >= 5) {
+            this.drawStreakEffects(ctx, centerX, centerY, radiusX);
+        }
+        
         ctx.save();
         ctx.translate(centerX, centerY);
         
@@ -255,12 +337,42 @@ class CoinFlipGame {
         // Draw main coin face
         ctx.scale(1, Math.abs(scaleY));
         
-        // Gradient for more realistic metallic look
+        // Gradient changes based on streak level
         const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, radiusX);
-        gradient.addColorStop(0, '#FFEB3B');
-        gradient.addColorStop(0.5, '#FFD700');
-        gradient.addColorStop(0.8, '#FFC700');
-        gradient.addColorStop(1, '#B8860B');
+        
+        if (this.streak >= 25) {
+            // Rainbow/Legendary coin
+            gradient.addColorStop(0, '#FF00FF');
+            gradient.addColorStop(0.2, '#FF0080');
+            gradient.addColorStop(0.4, '#FF8000');
+            gradient.addColorStop(0.6, '#FFFF00');
+            gradient.addColorStop(0.8, '#00FF00');
+            gradient.addColorStop(1, '#00FFFF');
+        } else if (this.streak >= 15) {
+            // Electric blue coin
+            gradient.addColorStop(0, '#00FFFF');
+            gradient.addColorStop(0.5, '#0080FF');
+            gradient.addColorStop(0.8, '#0040FF');
+            gradient.addColorStop(1, '#000080');
+        } else if (this.streak >= 10) {
+            // Fire coin
+            gradient.addColorStop(0, '#FFFF00');
+            gradient.addColorStop(0.3, '#FF8800');
+            gradient.addColorStop(0.6, '#FF4400');
+            gradient.addColorStop(1, '#FF0000');
+        } else if (this.streak >= 5) {
+            // Enhanced gold
+            gradient.addColorStop(0, '#FFFFFF');
+            gradient.addColorStop(0.3, '#FFEB3B');
+            gradient.addColorStop(0.6, '#FFD700');
+            gradient.addColorStop(1, '#FF8800');
+        } else {
+            // Normal gold
+            gradient.addColorStop(0, '#FFEB3B');
+            gradient.addColorStop(0.5, '#FFD700');
+            gradient.addColorStop(0.8, '#FFC700');
+            gradient.addColorStop(1, '#B8860B');
+        }
         
         // Draw coin background with ellipse for perspective
         ctx.fillStyle = gradient;
@@ -508,6 +620,8 @@ class CoinFlipGame {
         this.coinSide = 'heads';
         // Note: Bank is NOT reset - it's permanent currency
         
+        this.disableFireMode();
+        this.updateCoinEffects();
         this.updateDisplay();
         this.drawCoin();
         this.showMessage('GAME RESET! BANK IS SAFE');
@@ -518,6 +632,304 @@ class CoinFlipGame {
         document.querySelectorAll('.choice-btn').forEach(btn => {
             btn.classList.remove('selected');
         });
+    }
+    
+    // New methods for enhanced features
+    checkStreakMilestones() {
+        const milestones = [5, 10, 15, 20, 25, 30, 40, 50, 75, 100];
+        if (milestones.includes(this.streak)) {
+            this.showStreakAnnouncement();
+        }
+        
+        // Enable fire mode at streak 10
+        if (this.streak === 10) {
+            this.enableFireMode();
+        }
+    }
+    
+    showStreakAnnouncement() {
+        const announcement = document.getElementById('streakAnnouncement');
+        const text = document.getElementById('announcementText');
+        
+        let message = `${this.streak} STREAK!`;
+        if (this.streak >= 50) {
+            message = `LEGENDARY ${this.streak}!`;
+        } else if (this.streak >= 25) {
+            message = `UNSTOPPABLE ${this.streak}!`;
+        } else if (this.streak >= 10) {
+            message = `ON FIRE! ${this.streak}!`;
+        }
+        
+        text.textContent = message;
+        announcement.classList.add('show');
+        
+        setTimeout(() => {
+            announcement.classList.remove('show');
+        }, 2000);
+    }
+    
+    enableFireMode() {
+        this.fireMode = true;
+        document.getElementById('fireModeOverlay').classList.add('active');
+        document.getElementById('gameContainer').classList.add('fire-mode');
+    }
+    
+    disableFireMode() {
+        this.fireMode = false;
+        document.getElementById('fireModeOverlay').classList.remove('active');
+        document.getElementById('gameContainer').classList.remove('fire-mode');
+    }
+    
+    updateCoinEffects() {
+        const canvas = this.canvas;
+        canvas.className = '';
+        
+        if (this.streak >= 15) {
+            canvas.classList.add('coin-glow-3');
+        } else if (this.streak >= 10) {
+            canvas.classList.add('coin-glow-2');
+        } else if (this.streak >= 5) {
+            canvas.classList.add('coin-glow-1');
+        }
+    }
+    
+    drawStreakEffects(ctx, centerX, centerY, radius) {
+        const time = Date.now() / 100;
+        
+        if (this.streak >= 25) {
+            // Lightning effects
+            ctx.strokeStyle = 'rgba(255, 255, 0, 0.8)';
+            ctx.lineWidth = 2;
+            for (let i = 0; i < 3; i++) {
+                const angle = (time + i * 120) * Math.PI / 180;
+                ctx.beginPath();
+                const x1 = centerX + Math.cos(angle) * (radius + 20);
+                const y1 = centerY + Math.sin(angle) * (radius + 20);
+                const x2 = centerX + Math.cos(angle) * (radius + 40);
+                const y2 = centerY + Math.sin(angle) * (radius + 40);
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+            }
+        } else if (this.streak >= 15) {
+            // Electric sparks
+            ctx.strokeStyle = 'rgba(0, 200, 255, 0.6)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < 8; i++) {
+                const angle = (time * 2 + i * 45) * Math.PI / 180;
+                ctx.beginPath();
+                ctx.arc(
+                    centerX + Math.cos(angle) * (radius + 10),
+                    centerY + Math.sin(angle) * (radius + 10),
+                    3, 0, Math.PI * 2
+                );
+                ctx.stroke();
+            }
+        } else if (this.streak >= 10) {
+            // Fire particles
+            ctx.fillStyle = 'rgba(255, 100, 0, 0.7)';
+            for (let i = 0; i < 5; i++) {
+                const angle = (time * 3 + i * 72) * Math.PI / 180;
+                const dist = radius + 15 + Math.sin(time / 10 + i) * 10;
+                ctx.beginPath();
+                ctx.arc(
+                    centerX + Math.cos(angle) * dist,
+                    centerY + Math.sin(angle) * dist,
+                    4, 0, Math.PI * 2
+                );
+                ctx.fill();
+            }
+        } else if (this.streak >= 5) {
+            // Glowing orbs
+            ctx.fillStyle = 'rgba(255, 215, 0, 0.5)';
+            for (let i = 0; i < 3; i++) {
+                const angle = (time + i * 120) * Math.PI / 180;
+                ctx.beginPath();
+                ctx.arc(
+                    centerX + Math.cos(angle) * (radius + 10),
+                    centerY + Math.sin(angle) * (radius + 10),
+                    5, 0, Math.PI * 2
+                );
+                ctx.fill();
+            }
+        }
+    }
+    
+    updatePlayerTitle() {
+        let newTitle = 'NOVICE';
+        for (let i = this.titles.length - 1; i >= 0; i--) {
+            if (this.bestStreak >= this.titles[i].streak) {
+                newTitle = this.titles[i].title;
+                break;
+            }
+        }
+        
+        this.playerTitle = newTitle;
+        const titleElement = document.getElementById('playerTitle');
+        titleElement.textContent = newTitle;
+        
+        // Add special class for legendary titles
+        if (this.bestStreak >= 50) {
+            titleElement.classList.add('legendary');
+        } else {
+            titleElement.classList.remove('legendary');
+        }
+    }
+    
+    checkAchievements() {
+        this.achievementDefs.forEach(achievement => {
+            if (!this.achievements[achievement.id]) {
+                let unlocked = false;
+                
+                if (achievement.id.startsWith('streak_')) {
+                    unlocked = this.streak >= achievement.threshold;
+                } else if (achievement.id.startsWith('bank_')) {
+                    unlocked = this.bank >= achievement.threshold;
+                } else if (achievement.id === 'first_win') {
+                    unlocked = this.streak >= 1;
+                }
+                
+                if (unlocked) {
+                    this.achievements[achievement.id] = true;
+                    localStorage.setItem('achievements', JSON.stringify(this.achievements));
+                    this.showAchievementUnlock(achievement.title);
+                }
+            }
+        });
+    }
+    
+    showAchievementUnlock(title) {
+        const announcement = document.getElementById('streakAnnouncement');
+        const text = document.getElementById('announcementText');
+        
+        text.textContent = `ACHIEVEMENT: ${title}!`;
+        announcement.classList.add('show');
+        
+        setTimeout(() => {
+            announcement.classList.remove('show');
+        }, 3000);
+    }
+    
+    saveStreakRecord(streak, score) {
+        const record = {
+            streak: streak,
+            score: score,
+            date: new Date().toISOString(),
+            timestamp: Date.now()
+        };
+        
+        this.streakRecords.push(record);
+        // Keep only top 10 records
+        this.streakRecords.sort((a, b) => b.streak - a.streak);
+        this.streakRecords = this.streakRecords.slice(0, 10);
+        
+        localStorage.setItem('streakRecords', JSON.stringify(this.streakRecords));
+    }
+    
+    showHallOfFame() {
+        const modal = document.getElementById('hallOfFameModal');
+        modal.classList.add('show');
+        this.loadRecords();
+        this.loadAchievements();
+    }
+    
+    loadRecords() {
+        const recordsDiv = document.getElementById('streakRecords');
+        
+        if (this.streakRecords.length === 0) {
+            recordsDiv.innerHTML = '<p style="color: #888; text-align: center;">NO RECORDS YET</p>';
+            return;
+        }
+        
+        recordsDiv.innerHTML = this.streakRecords.map((record, index) => {
+            const date = new Date(record.date).toLocaleDateString();
+            return `
+                <div class="record-item">
+                    <div>
+                        <span class="record-streak">#${index + 1} - ${record.streak} STREAK</span>
+                        <div class="record-date">${date}</div>
+                    </div>
+                    <span class="record-score">${record.score} PTS</span>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    loadAchievements() {
+        const achievementsDiv = document.getElementById('achievements');
+        
+        achievementsDiv.innerHTML = this.achievementDefs.map(achievement => {
+            const unlocked = this.achievements[achievement.id] || false;
+            return `
+                <div class="achievement-item ${unlocked ? 'unlocked' : ''}">
+                    <div class="achievement-title">${achievement.title}</div>
+                    <div class="achievement-desc">${achievement.desc}</div>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    switchTab(tab) {
+        // Update tab buttons
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+        
+        // Update tab content
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.remove('active');
+        });
+        
+        if (tab === 'records') {
+            document.getElementById('recordsTab').classList.add('active');
+        } else {
+            document.getElementById('achievementsTab').classList.add('active');
+        }
+    }
+    
+    shareStreak() {
+        const shareData = {
+            title: `${this.playerTitle}`,
+            streak: this.streak,
+            bestStreak: this.bestStreak,
+            bank: this.bank,
+            achievements: Object.keys(this.achievements).length,
+            totalAchievements: this.achievementDefs.length
+        };
+        
+        const message = `🎮 COIN FLIP STREAK
+${shareData.title}
+Current Streak: ${shareData.streak}
+Best Streak: ${shareData.bestStreak}
+Banked: ${shareData.bank} coins
+Achievements: ${shareData.achievements}/${shareData.totalAchievements}
+
+Play at: ${window.location.href}`;
+        
+        // Try to use Web Share API if available
+        if (navigator.share) {
+            navigator.share({
+                title: 'Coin Flip Streak',
+                text: message
+            }).catch(err => {
+                // Fallback to copy to clipboard
+                this.copyToClipboard(message);
+            });
+        } else {
+            this.copyToClipboard(message);
+        }
+    }
+    
+    copyToClipboard(text) {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        
+        this.showMessage('STATS COPIED TO CLIPBOARD!');
     }
 }
 

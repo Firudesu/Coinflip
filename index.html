@@ -7,8 +7,13 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="game-container">
+    <div class="game-container" id="gameContainer">
         <h1 class="game-title">COIN FLIP STREAK</h1>
+        
+        <div class="player-info">
+            <span class="player-title" id="playerTitle">NOVICE</span>
+            <span class="player-name" id="playerName">PLAYER</span>
+        </div>
         
         <div class="stats-container">
             <div class="stat-box">
@@ -64,7 +69,38 @@
         </div>
 
         <button class="pixel-btn reset-btn" id="resetBtn">RESET GAME</button>
+        
+        <div class="button-row">
+            <button class="pixel-btn hall-btn" id="hallBtn">HALL OF FAME</button>
+            <button class="pixel-btn share-btn" id="shareBtn">SHARE STREAK</button>
+        </div>
     </div>
+    
+    <!-- Streak Announcement Overlay -->
+    <div class="streak-announcement" id="streakAnnouncement">
+        <span id="announcementText"></span>
+    </div>
+    
+    <!-- Hall of Fame Modal -->
+    <div class="modal" id="hallOfFameModal">
+        <div class="modal-content">
+            <h2 class="modal-title">HALL OF FAME</h2>
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="records">MY RECORDS</button>
+                <button class="tab-btn" data-tab="achievements">ACHIEVEMENTS</button>
+            </div>
+            <div class="tab-content active" id="recordsTab">
+                <div id="streakRecords"></div>
+            </div>
+            <div class="tab-content" id="achievementsTab">
+                <div id="achievements"></div>
+            </div>
+            <button class="pixel-btn close-btn" id="closeModal">CLOSE</button>
+        </div>
+    </div>
+    
+    <!-- Fire Mode Overlay -->
+    <div class="fire-mode-overlay" id="fireModeOverlay"></div>
 
     <script src="game.js"></script>
 </body>
