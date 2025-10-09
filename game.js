@@ -28,6 +28,7 @@ class CoinFlipGame {
         // Shop system
         this.inventory = [null, null]; // Max 2 items
         this.shopUnlocked = false;
+        this.shopAvailable = false; // Whether shop can be opened at current streak
         this.lastShopStreak = 0;
         this.activeEffects = {}; // Track active item effects
         this.shopItems = this.defineShopItems();
@@ -130,9 +131,16 @@ class CoinFlipGame {
             this.shareStreak();
         });
         
-        // Shop button
+        // Shop button - only works when shop is available
         document.getElementById('shopBtn').addEventListener('click', () => {
-            this.openShop();
+            if (this.shopAvailable || this.streak === this.lastShopStreak) {
+                this.openShop();
+            } else if (!this.shopUnlocked) {
+                this.showMessage('SHOP UNLOCKS AT 5 STREAK!');
+            } else {
+                const nextShop = this.getNextShopStreak();
+                this.showMessage(`SHOP REOPENS AT STREAK ${nextShop}!`);
+            }
         });
         
         // Floating shop button
@@ -141,9 +149,11 @@ class CoinFlipGame {
             document.getElementById('floatingShopBtn').style.display = 'none';
         });
         
-        // Close shop button
+        // Close shop button - marks shop as used for this streak
         document.getElementById('closeShop').addEventListener('click', () => {
             document.getElementById('shopModal').classList.remove('show');
+            this.shopAvailable = false;  // Shop is now closed until next milestone
+            document.getElementById('floatingShopBtn').style.display = 'none';
         });
         
         // Modal close button
@@ -823,22 +833,29 @@ class CoinFlipGame {
             this.showStreakAnnouncement();
         }
         
-        // Enable shop permanently at streak 5 (first time only)
-        if (this.streak >= 5 && !this.shopUnlocked) {
+        // Shop unlocks at streak 5 and opens immediately
+        if (this.streak === 5 && !this.shopUnlocked) {
             this.shopUnlocked = true;
+            this.lastShopStreak = 5;
             localStorage.setItem('shopUnlocked', 'true');
             this.showShopUnlock();
+            // Open shop automatically on first unlock
+            setTimeout(() => {
+                this.openShop();
+            }, 2000);
+        }
+        
+        // Shop reopens every 3 streaks after being unlocked (8, 11, 14, 17, 20, etc.)
+        if (this.shopUnlocked && this.streak > 5 && (this.streak - 5) % 3 === 0) {
+            // Shop is now available at this streak
+            this.shopAvailable = true;
+            this.lastShopStreak = this.streak;
+            this.showShopAvailable();
         }
         
         // Enable fire mode at streak 10
         if (this.streak === 10) {
             this.enableFireMode();
-        }
-        
-        // Check for shop availability every 3 streaks if shop is unlocked
-        if (this.shopUnlocked && this.streak >= 3 && this.streak % 3 === 0 && this.streak !== this.lastShopStreak) {
-            this.showShopAvailable();
-            this.lastShopStreak = this.streak;
         }
     }
     
@@ -1461,8 +1478,15 @@ Play at: ${window.location.href}`;
     }
     
     openShop() {
-        if (this.streak < 5 && !this.shopUnlocked) {
+        // Check if shop should be accessible
+        if (!this.shopUnlocked) {
             this.showMessage('SHOP UNLOCKS AT 5 STREAK!');
+            return;
+        }
+        
+        if (!this.shopAvailable && this.streak !== this.lastShopStreak) {
+            const nextShop = this.getNextShopStreak();
+            this.showMessage(`SHOP REOPENS AT STREAK ${nextShop}!`);
             return;
         }
         
@@ -1471,6 +1495,14 @@ Play at: ${window.location.href}`;
         
         this.updateShopDisplay();
         this.generateShopStock();
+    }
+    
+    getNextShopStreak() {
+        if (this.streak < 5) return 5;
+        // Calculate next shop opening: 5, 8, 11, 14, 17, 20, etc.
+        const streaksSinceUnlock = this.streak - 5;
+        const nextInterval = Math.floor(streaksSinceUnlock / 3) + 1;
+        return 5 + (nextInterval * 3);
     }
     
     updateShopDisplay() {
@@ -1676,14 +1708,15 @@ Play at: ${window.location.href}`;
     }
     
     showShopAvailable() {
-        this.showMessage(`SHOP AVAILABLE! ${this.streak} STREAK!`);
+        this.showMessage(`SHOP OPEN NOW! STREAK ${this.streak} - CLOSES AFTER USE!`);
         
         const btn = document.getElementById('floatingShopBtn');
-        btn.querySelector('.shop-text').textContent = 'SHOP AVAILABLE!';
+        btn.querySelector('.shop-text').textContent = 'SHOP OPEN!';
         btn.style.display = 'block';
         
+        // Auto-hide after 5 seconds if not clicked
         setTimeout(() => {
-            if (btn.style.display === 'block') {
+            if (btn.style.display === 'block' && this.shopAvailable) {
                 btn.style.display = 'none';
             }
         }, 5000);
