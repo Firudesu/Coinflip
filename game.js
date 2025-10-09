@@ -773,15 +773,19 @@ class CoinFlipGame {
             this.showStreakAnnouncement();
         }
         
-        // Enable fire mode at streak 10
-        if (this.streak === 10) {
-            this.enableFireMode();
+        // Enable shop at streak 5
+        if (this.streak === 5) {
             this.shopUnlocked = true;
             this.showShopUnlock();
         }
         
-        // Check for shop availability every 5 streaks after 10
-        if (this.streak >= 10 && this.streak % 5 === 0 && this.streak !== this.lastShopStreak) {
+        // Enable fire mode at streak 10
+        if (this.streak === 10) {
+            this.enableFireMode();
+        }
+        
+        // Check for shop availability every 5 streaks after 5
+        if (this.streak >= 5 && this.streak % 5 === 0 && this.streak !== this.lastShopStreak) {
             this.showShopAvailable();
             this.lastShopStreak = this.streak;
         }
@@ -1406,8 +1410,8 @@ Play at: ${window.location.href}`;
     }
     
     openShop() {
-        if (this.streak < 10 && !this.shopUnlocked) {
-            this.showMessage('SHOP UNLOCKS AT 10 STREAK!');
+        if (this.streak < 5 && !this.shopUnlocked) {
+            this.showMessage('SHOP UNLOCKS AT 5 STREAK!');
             return;
         }
         
@@ -1424,9 +1428,12 @@ Play at: ${window.location.href}`;
         
         // Update status
         const statusEl = document.getElementById('shopStatus');
-        if (this.streak >= 10 && this.streak % 5 === 0) {
+        if (this.streak >= 5 && this.streak % 5 === 0) {
             statusEl.textContent = 'NEW ITEMS AVAILABLE!';
             statusEl.style.color = '#4ecdc4';
+        } else if (this.streak < 5) {
+            statusEl.textContent = 'STREAK 5+ TO UNLOCK';
+            statusEl.style.color = '#ff6b6b';
         } else {
             const nextShop = Math.ceil(this.streak / 5) * 5;
             statusEl.textContent = `NEXT SHOP AT ${nextShop} STREAK`;
