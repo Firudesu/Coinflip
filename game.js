@@ -146,6 +146,13 @@ class CoinFlipGame {
                 this.switchTab(tab);
             });
         });
+        
+        // Inventory slots
+        document.querySelectorAll('.inventory-slot').forEach((slot, index) => {
+            slot.addEventListener('click', () => {
+                this.useItem(index);
+            });
+        });
     }
     
     highlightChoice(choice) {
@@ -288,6 +295,11 @@ class CoinFlipGame {
             
             // Check for streak milestones and announcements
             this.checkStreakMilestones();
+            
+            // Check for battle availability
+            if (this.checkBattleAvailability) {
+                this.checkBattleAvailability();
+            }
             
             // Update best streak and title
             if (this.streak > this.bestStreak) {
@@ -649,9 +661,17 @@ class CoinFlipGame {
             const bankBtn = document.getElementById('bankBtn');
             bankBtn.classList.add('banking');
             
-            // Add score to bank
-            const bankedAmount = this.score;
+            // Add score to bank with potential boost
+            let bankedAmount = this.score;
             const bankedStreak = this.streak;
+            
+            // Apply bank boost
+            if (this.activeEffects.bankBoost) {
+                bankedAmount = Math.floor(bankedAmount * this.activeEffects.bankBoost);
+                this.activeEffects.bankBoost = null;
+                this.showMessage(`BANK BOOST! +20% BONUS!`);
+            }
+            
             this.bank += bankedAmount;
             localStorage.setItem('bank', this.bank);
             
@@ -1651,5 +1671,5 @@ document.head.appendChild(style);
 
 // Initialize game when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    new CoinFlipGame();
+    window.game = new CoinFlipGame();
 });

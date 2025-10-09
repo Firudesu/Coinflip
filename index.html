@@ -145,6 +145,99 @@
         <span class="shop-text">SHOP UNLOCKED!</span>
     </button>
     
+    <!-- Battle Button (appears at battle milestones) -->
+    <button class="pixel-btn battle-btn floating-battle" id="floatingBattleBtn" style="display: none;">
+        <span class="battle-icon">⚔️</span>
+        <span class="battle-text">BATTLE READY!</span>
+    </button>
+    
+    <!-- Battle Mode Modal -->
+    <div class="modal" id="battleModal">
+        <div class="battle-content">
+            <div class="battle-header">
+                <h2 class="battle-title">BATTLE MODE</h2>
+                <div class="battle-stats">
+                    <span class="battle-wins">WINS: <span id="battleWins">0</span></span>
+                    <span class="boss-defeats">BOSSES: <span id="bossDefeats">0</span></span>
+                </div>
+            </div>
+            
+            <!-- Opponent Selection -->
+            <div class="opponent-section" id="opponentSection">
+                <div class="opponent-portrait">
+                    <div class="portrait-frame">
+                        <span class="opponent-avatar" id="opponentAvatar">👤</span>
+                    </div>
+                    <div class="opponent-info">
+                        <h3 class="opponent-name" id="opponentName">OPPONENT</h3>
+                        <p class="opponent-desc" id="opponentDesc">Description</p>
+                    </div>
+                </div>
+                
+                <div class="vs-divider">VS</div>
+                
+                <div class="player-portrait">
+                    <div class="portrait-frame">
+                        <span class="player-avatar">🎮</span>
+                    </div>
+                    <div class="player-info">
+                        <h3 class="player-battle-name" id="playerBattleName">PLAYER</h3>
+                        <p class="player-battle-title" id="playerBattleTitle">TITLE</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Wager Phase -->
+            <div class="wager-section" id="wagerSection">
+                <h3 class="wager-title">PLACE YOUR WAGER</h3>
+                <div class="wager-controls">
+                    <input type="range" id="wagerSlider" min="10" max="100" value="50" step="10">
+                    <div class="wager-display">
+                        <span class="wager-amount" id="wagerAmount">50</span>
+                        <span class="wager-currency">🪙</span>
+                    </div>
+                </div>
+                <div class="pot-info">
+                    <span>TOTAL POT: </span>
+                    <span class="pot-amount" id="potAmount">100</span>
+                </div>
+                <button class="pixel-btn start-battle-btn" id="startBattleBtn">START BATTLE!</button>
+            </div>
+            
+            <!-- Battle Phase -->
+            <div class="battle-phase" id="battlePhase" style="display: none;">
+                <div class="battle-scores">
+                    <div class="battle-score player-score">
+                        <span class="score-label">YOUR STREAK</span>
+                        <span class="score-value" id="playerBattleStreak">0</span>
+                    </div>
+                    <div class="battle-score opponent-score">
+                        <span class="score-label">OPPONENT STREAK</span>
+                        <span class="score-value" id="opponentBattleStreak">0</span>
+                    </div>
+                </div>
+                
+                <canvas id="battleCoinCanvas" width="150" height="150"></canvas>
+                
+                <div class="battle-controls" id="battleControls">
+                    <button class="pixel-btn battle-choice" data-choice="heads">HEADS</button>
+                    <button class="pixel-btn battle-choice" data-choice="tails">TAILS</button>
+                </div>
+                
+                <div class="battle-message" id="battleMessage">MAKE YOUR CHOICE!</div>
+            </div>
+            
+            <!-- Battle Result -->
+            <div class="battle-result" id="battleResult" style="display: none;">
+                <h3 class="result-title" id="battleResultTitle">VICTORY!</h3>
+                <div class="result-rewards" id="battleRewards"></div>
+                <button class="pixel-btn close-battle-btn" id="closeBattleBtn">CONTINUE</button>
+            </div>
+            
+            <button class="pixel-btn skip-battle-btn" id="skipBattleBtn">SKIP BATTLE</button>
+        </div>
+    </div>
+    
     <!-- Fire Mode Overlay -->
     <div class="fire-mode-overlay" id="fireModeOverlay"></div>
     
@@ -173,5 +266,6 @@
     </audio>
 
     <script src="game.js"></script>
+    <script src="battle-system.js"></script>
 </body>
 </html>
