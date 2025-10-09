@@ -330,11 +330,6 @@ class CoinFlipGame {
             // Check for streak milestones and announcements
             this.checkStreakMilestones();
             
-            // Check for battle availability
-            if (this.checkBattleAvailability) {
-                this.checkBattleAvailability();
-            }
-            
             // Update best streak and title
             if (this.streak > this.bestStreak) {
                 this.bestStreak = this.streak;

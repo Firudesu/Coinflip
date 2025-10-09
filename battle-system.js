@@ -4,7 +4,6 @@
 // Add battle properties to the game constructor
 CoinFlipGame.prototype.initBattleSystem = function() {
     this.battleMode = {
-        unlocked: false,
         wins: 0,
         bossDefeats: 0,
         lastBattleStreak: 0,
@@ -16,7 +15,6 @@ CoinFlipGame.prototype.initBattleSystem = function() {
     const savedBattle = localStorage.getItem('battleStats');
     if (savedBattle) {
         const stats = JSON.parse(savedBattle);
-        this.battleMode.unlocked = stats.unlocked || false;
         this.battleMode.wins = stats.wins || 0;
         this.battleMode.bossDefeats = stats.bossDefeats || 0;
     }
@@ -155,26 +153,23 @@ CoinFlipGame.prototype.setupBattleListeners = function() {
 };
 
 CoinFlipGame.prototype.checkBattleAvailability = function() {
-    // Check if battle mode should unlock permanently at streak 10
-    if (this.streak >= 10 && !this.battleMode.unlocked) {
-        this.battleMode.unlocked = true;
-        this.saveBattleStats();
-        this.showMessage('BATTLE MODE UNLOCKED! BATTLES NOW AVAILABLE!');
-    }
+    // No longer needed - battles are always available
 }
 
 CoinFlipGame.prototype.checkForBattle = function() {
-    // Don't trigger during battles or if not unlocked
-    if (!this.battleMode || !this.battleMode.unlocked || this.battleMode.battleInProgress) {
+    // Don't trigger during battles
+    if (!this.battleMode || this.battleMode.battleInProgress) {
         return false;
     }
     
     // Base chance for battle (increases with streak)
-    let battleChance = 0.05; // 5% base chance
+    let battleChance = 0.03; // 3% base chance at low streaks
     
-    if (this.streak >= 20) battleChance = 0.08;
-    if (this.streak >= 30) battleChance = 0.10;
-    if (this.streak >= 40) battleChance = 0.12;
+    if (this.streak >= 5) battleChance = 0.05;   // 5% at streak 5+
+    if (this.streak >= 10) battleChance = 0.07;  // 7% at streak 10+
+    if (this.streak >= 20) battleChance = 0.08;  // 8% at streak 20+
+    if (this.streak >= 30) battleChance = 0.10;  // 10% at streak 30+
+    if (this.streak >= 40) battleChance = 0.12;  // 12% at streak 40+
     
     // Roll for battle
     if (Math.random() < battleChance) {
@@ -430,7 +425,6 @@ CoinFlipGame.prototype.updateBattleDisplay = function() {
 
 CoinFlipGame.prototype.saveBattleStats = function() {
     localStorage.setItem('battleStats', JSON.stringify({
-        unlocked: this.battleMode.unlocked,
         wins: this.battleMode.wins,
         bossDefeats: this.battleMode.bossDefeats
     }));
