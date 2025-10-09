@@ -232,6 +232,8 @@ body {
 .pixel-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    background: #333;
+    color: #666;
 }
 
 .choice-btn[data-choice="heads"] {
@@ -1088,9 +1090,10 @@ body {
     padding: 20px;
     max-width: 900px;
     width: 90%;
-    max-height: 90vh;
+    max-height: 85vh;
     overflow-y: auto;
     box-shadow: 0 0 50px rgba(255, 0, 0, 0.5);
+    position: relative;
 }
 
 .battle-title {
@@ -1213,15 +1216,27 @@ body {
     height: 10px;
     background: #4a4a4a;
     outline: none;
+    border-radius: 5px;
 }
 
 #wagerSlider::-webkit-slider-thumb {
     -webkit-appearance: none;
+    appearance: none;
     width: 20px;
     height: 20px;
     background: #ffd700;
     cursor: pointer;
     border: 2px solid #000;
+    border-radius: 50%;
+}
+
+#wagerSlider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    background: #ffd700;
+    cursor: pointer;
+    border: 2px solid #000;
+    border-radius: 50%;
 }
 
 .wager-display {

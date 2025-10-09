@@ -117,19 +117,8 @@ CoinFlipGame.prototype.setupBattleListeners = function() {
         document.getElementById('battleModal').classList.remove('show');
     });
     
-    // Wager slider
-    const wagerSlider = document.getElementById('wagerSlider');
-    const wagerAmount = document.getElementById('wagerAmount');
-    const potAmount = document.getElementById('potAmount');
-    
-    wagerSlider.addEventListener('input', (e) => {
-        const wager = parseInt(e.target.value);
-        wagerAmount.textContent = wager;
-        potAmount.textContent = wager * 2;
-    });
-    
-    // Set max wager based on bank
-    wagerSlider.max = Math.min(this.bank, 500);
+    // Wager slider - needs to be set up each time modal opens
+    // This will be handled in openBattleMode instead
     
     // Start battle button
     document.getElementById('startBattleBtn').addEventListener('click', () => {
@@ -207,7 +196,42 @@ CoinFlipGame.prototype.openBattleMode = function() {
     
     // Update player info
     document.getElementById('playerBattleName').textContent = 'PLAYER';
-    document.getElementById('playerBattleTitle').textContent = this.playerTitle;
+    document.getElementById('playerBattleTitle').textContent = this.playerTitle || 'NOVICE';
+    
+    // Setup wager slider based on current bank
+    const wagerSlider = document.getElementById('wagerSlider');
+    const wagerAmount = document.getElementById('wagerAmount');
+    const potAmount = document.getElementById('potAmount');
+    
+    // Check if player has any money
+    if (this.bank < 1) {
+        wagerSlider.min = 0;
+        wagerSlider.max = 0;
+        wagerSlider.value = 0;
+        wagerAmount.textContent = 0;
+        potAmount.textContent = 0;
+        document.getElementById('startBattleBtn').disabled = true;
+        this.showMessage('NEED AT LEAST 1 COIN TO BATTLE!');
+    } else {
+        // Set min to 1 and max to current bank balance
+        const maxWager = this.bank;
+        wagerSlider.min = 1;
+        wagerSlider.max = maxWager;
+        
+        // Set initial value to min(10, maxWager)
+        const initialWager = Math.min(10, maxWager);
+        wagerSlider.value = initialWager;
+        wagerAmount.textContent = initialWager;
+        potAmount.textContent = initialWager * 2;
+        document.getElementById('startBattleBtn').disabled = false;
+    }
+    
+    // Update wager display when slider moves
+    wagerSlider.oninput = function() {
+        const wager = parseInt(this.value);
+        wagerAmount.textContent = wager;
+        potAmount.textContent = wager * 2;
+    };
     
     // Reset battle UI
     document.getElementById('wagerSection').style.display = 'block';
@@ -245,6 +269,13 @@ CoinFlipGame.prototype.selectOpponent = function() {
 CoinFlipGame.prototype.startBattle = function() {
     const wager = parseInt(document.getElementById('wagerSlider').value);
     
+    // Check minimum wager
+    if (wager < 1 || isNaN(wager)) {
+        this.showMessage('MINIMUM WAGER IS 1 COIN!');
+        return;
+    }
+    
+    // Check if player has enough money
     if (wager > this.bank) {
         this.showMessage('NOT ENOUGH COINS!');
         return;
