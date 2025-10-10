@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Coin Flip Streak</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <header class="game-header">
+            <h1 class="game-title">PIXEL COIN FLIP</h1>
+            <div class="stats-container">
+                <div class="stat">
+                    <span class="stat-label">STREAK:</span>
+                    <span class="stat-value" id="streak">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">MULTIPLIER:</span>
+                    <span class="stat-value" id="multiplier">1.0x</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">BEST:</span>
+                    <span class="stat-value" id="best-streak">0</span>
+                </div>
+            </div>
+        </header>
+
+        <main class="game-main">
+            <div class="prediction-section">
+                <h2 class="section-title">MAKE YOUR GUESS:</h2>
+                <div class="choice-buttons">
+                    <button class="choice-btn" id="heads-btn" data-choice="heads">
+                        <div class="choice-icon">H</div>
+                        <span>HEADS</span>
+                    </button>
+                    <button class="choice-btn" id="tails-btn" data-choice="tails">
+                        <div class="choice-icon">T</div>
+                        <span>TAILS</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="coin-section">
+                <div class="coin-container">
+                    <div class="coin" id="coin">
+                        <div class="coin-face coin-heads">
+                            <div class="coin-inner">
+                                <div class="coin-symbol">♔</div>
+                                <div class="coin-text">HEADS</div>
+                            </div>
+                        </div>
+                        <div class="coin-face coin-tails">
+                            <div class="coin-inner">
+                                <div class="coin-symbol">⚡</div>
+                                <div class="coin-text">TAILS</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button class="flip-btn" id="flip-btn" disabled>
+                    <span class="btn-text">SELECT HEADS OR TAILS FIRST</span>
+                </button>
+            </div>
+
+            <div class="result-section" id="result-section">
+                <div class="result-message" id="result-message"></div>
+            </div>
+        </main>
+
+        <footer class="game-footer">
+            <div class="instructions">
+                <p>🎯 Pick heads or tails, then flip the coin!</p>
+                <p>🔥 Build streaks to increase your multiplier!</p>
+                <p>📈 Each correct guess adds +0.1x to your multiplier</p>
+            </div>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
