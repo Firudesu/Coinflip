@@ -400,19 +400,20 @@ CoinFlipGame.prototype.checkForRandomEvent = function() {
     // Don't trigger during battles or other special modes
     if (this.battleMode?.battleInProgress || this.eventActive) return false;
     
-    // Calculate event chance (start at 10% for testing, was 8%)
-    let chance = 0.10;
+    // Calculate event chance - increased base chance from 10% to 15%
+    let chance = 0.15;
     
     // Increase chance based on streak
-    if (this.streak > 10) chance += 0.02;
-    if (this.streak > 20) chance += 0.03;
-    if (this.streak > 30) chance += 0.05;
+    if (this.streak > 10) chance += 0.05;  // +5% at streak 10+
+    if (this.streak > 20) chance += 0.05;  // +5% at streak 20+
+    if (this.streak > 30) chance += 0.10;  // +10% at streak 30+
+    // Total max chance: 35% at streak 30+
     
     const roll = Math.random();
     console.log(`Event check: rolled ${roll.toFixed(3)} vs chance ${chance.toFixed(3)}`);
     
-    // Roll for event (fixed: should be < not >)
-    if (roll > chance) return false;
+    // Roll for event (FIXED: now correctly using < instead of >)
+    if (roll >= chance) return false;
     
     // Filter available events based on streak
     const availableEvents = Object.entries(this.randomEvents).filter(([key, event]) => {
@@ -423,10 +424,10 @@ CoinFlipGame.prototype.checkForRandomEvent = function() {
     
     // Consider rarity
     let selectedEvent;
-    const roll = Math.random();
+    const rarityRoll = Math.random();
     
     // Check for rare events first
-    const rareEvents = availableEvents.filter(([k, e]) => e.rarity && roll < e.rarity);
+    const rareEvents = availableEvents.filter(([k, e]) => e.rarity && rarityRoll < e.rarity);
     if (rareEvents.length > 0) {
         selectedEvent = rareEvents[Math.floor(Math.random() * rareEvents.length)];
     } else {
