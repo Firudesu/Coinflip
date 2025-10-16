@@ -114,18 +114,9 @@ class CoinFlipGame {
                     this.playerChoice = e.target.closest('.choice-btn').dataset.choice;
                     this.highlightChoice(this.playerChoice);
                     
-                    // Check for battle trigger
-                    if (this.checkForBattle && this.checkForBattle()) {
-                        // Battle triggered, don't flip
-                        this.showMessage('BATTLE INCOMING!');
-                        setTimeout(() => {
-                            this.openBattleMode();
-                            document.getElementById('floatingBattleBtn').style.display = 'none';
-                        }, 1000);
-                    } else {
-                        // Normal flip
-                        this.flipCoin();
-                    }
+                    // DISABLED: Battle trigger for debugging
+                    console.log('Calling flipCoin()');
+                    this.flipCoin();
                 } else {
                     console.log('Click blocked - isFlipping:', this.isFlipping, 'eventActive:', this.eventActive);
                 }
@@ -209,6 +200,8 @@ class CoinFlipGame {
     }
     
     flipCoin() {
+        console.log('flipCoin() called, isFlipping:', this.isFlipping);
+        
         if (this.isFlipping) {
             console.log('Flip blocked - already flipping');
             return;
@@ -224,6 +217,7 @@ class CoinFlipGame {
         // Will re-enable after fixing
         console.log('Random events disabled for debugging');
         
+        console.log('Starting flip animation...');
         this.isFlipping = true;
         this.canvas.classList.add('flipping', 'disabled');
         document.getElementById('choiceContainer').classList.add('hidden');
