@@ -115,12 +115,16 @@
                     <span class="currency-value" id="shopBank">0</span>
                 </div>
                 <div class="shop-status">
-                    <span id="shopStatus">STREAK 5+ TO UNLOCK</span>
+                    <span id="shopStatus">STREAK 3+ TO UNLOCK</span>
+                    <div id="rotationTimer" style="display: none;">
+                        <span>New items in: </span>
+                        <span id="timerDisplay">5:00</span>
+                    </div>
                 </div>
             </div>
             
             <div class="inventory-section">
-                <h3 class="inventory-title">YOUR ITEMS (MAX 2)</h3>
+                <h3 class="inventory-title">EQUIPPED ITEMS (MAX 3)</h3>
                 <div class="inventory-slots" id="inventorySlots">
                     <div class="inventory-slot empty" data-slot="0">
                         <span class="slot-empty">EMPTY</span>
@@ -128,11 +132,29 @@
                     <div class="inventory-slot empty" data-slot="1">
                         <span class="slot-empty">EMPTY</span>
                     </div>
+                    <div class="inventory-slot empty" data-slot="2">
+                        <span class="slot-empty">EMPTY</span>
+                    </div>
+                </div>
+                <div class="equip-info">
+                    <p>Slot 1: Unlocked</p>
+                    <p>Slot 2: Unlocks at Streak 10</p>
+                    <p>Slot 3: Unlocks at Streak 25</p>
                 </div>
             </div>
             
-            <div class="shop-items" id="shopItems">
-                <!-- Items will be dynamically generated -->
+            <div class="shop-tabs">
+                <button class="shop-tab active" data-tab="shop">SHOP</button>
+                <button class="shop-tab" data-tab="collection">COLLECTION</button>
+            </div>
+            
+            <div class="shop-content">
+                <div class="shop-items active" id="shopItems">
+                    <!-- Items will be dynamically generated -->
+                </div>
+                <div class="collection-items" id="collectionItems">
+                    <!-- Owned items will be shown here -->
+                </div>
             </div>
             
             <button class="pixel-btn close-btn" id="closeShop">CLOSE</button>
@@ -155,6 +177,17 @@
         <span class="battle-icon">⚔️</span>
         <span class="battle-text">BATTLE READY!</span>
     </button>
+    
+    <!-- Item Selection Modal -->
+    <div class="modal" id="itemSelectionModal">
+        <div class="item-selection-content">
+            <h2 class="item-selection-title">SELECT ITEM TO EQUIP</h2>
+            <div class="owned-items" id="ownedItems">
+                <!-- Owned items will be displayed here -->
+            </div>
+            <button class="pixel-btn close-btn" id="closeItemSelection">CLOSE</button>
+        </div>
+    </div>
     
     <!-- Workshop Modal -->
     <div class="modal" id="workshopModal">
