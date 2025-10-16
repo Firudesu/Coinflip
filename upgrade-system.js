@@ -13,7 +13,8 @@ CoinFlipGame.prototype.initUpgradeSystem = function() {
         metalCoin: { level: 0, max: 5, baseCost: 300, tier: 2 },
         goldenEdge: { level: 0, max: 10, baseCost: 250, tier: 1 },
         luckyMemory: { level: 0, max: 10, baseCost: 200, tier: 2 },
-        safetyToss: { level: 0, max: 1, baseCost: 600, tier: 4 }
+        safetyToss: { level: 0, max: 1, baseCost: 600, tier: 4 },
+        fateControl: { level: 0, max: 5, baseCost: 400, tier: 3 }
     };
     
     this.workshopUnlocked = false;
@@ -121,6 +122,15 @@ CoinFlipGame.prototype.defineUpgrades = function() {
             tier: 4,
             getValue: (level) => level > 0 ? 1 : 0,
             category: 'legendary'
+        },
+        fateControl: {
+            name: 'Fate Control',
+            icon: '🎭',
+            description: '+3% chance per level for positive events, -3% for negative ones',
+            effect: (level) => `${level * 3}% event bias`,
+            tier: 3,
+            getValue: (level) => level * 0.03,
+            category: 'master'
         }
     };
 };

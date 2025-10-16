@@ -237,18 +237,28 @@ class CoinFlipGame {
                 case 'winChance':
                     winChance += item.value;
                     break;
-                case 'hotHand':
-                    if (this.lastThreeFlips && this.lastThreeFlips.every(flip => flip === true)) {
-                        winChance += item.value;
-                    }
-                    break;
-                case 'coldBlooded':
-                    if (this.lastTwoFlips && this.lastTwoFlips.every(flip => flip === false)) {
-                        winChance += item.value;
-                    }
+                case 'richToss':
+                    winChance += item.value.winPenalty; // -10% win chance
                     break;
             }
         });
+        
+        // Apply active event effects
+        if (this.activeEffects.luckySurge > 0) {
+            winChance += 0.10; // +10% win chance
+        }
+        if (this.activeEffects.weightedCoin > 0) {
+            winChance -= 0.10; // -10% win chance
+        }
+        if (this.activeEffects.blessedCoin) {
+            winChance = 1.0; // Guaranteed win
+        }
+        if (this.activeEffects.misflip) {
+            winChance = 0.0; // Guaranteed loss
+        }
+        if (this.activeEffects.reverseLuck) {
+            winChance = 1.0 - winChance; // Invert win chance
+        }
         
         let result = Math.random() < winChance ? this.playerChoice : 
                      (this.playerChoice === 'heads' ? 'tails' : 'heads');
@@ -340,6 +350,9 @@ class CoinFlipGame {
         
         // Durability only processes on losses, not wins
         
+        // Process active event effects
+        this.processActiveEventEffects(won);
+        
         if (won) {
             this.streak++;
             
@@ -376,6 +389,44 @@ class CoinFlipGame {
             this.multiplier = 1.0 + (this.streak * multiplierGrowth) + (this.riskTakerBonus || 0) + (this.bondMultiplier || 0);
             
             let points = Math.round(this.basePoints * this.multiplier);
+            
+            // Apply event effects for points
+            if (this.activeEffects.goldenShine > 0) {
+                points *= 2; // Double gold
+                this.showMessage('GOLDEN SHINE! DOUBLE GOLD!');
+            }
+            
+            if (this.activeEffects.doubleOrNothing) {
+                points *= 2; // Double reward
+                delete this.activeEffects.doubleOrNothing;
+                this.showMessage('DOUBLE OR NOTHING! DOUBLE REWARD!');
+            }
+            
+            // Apply equipped item effects for gold
+            this.equippedItems.forEach(item => {
+                if (!item || item.durability <= 0) return;
+                
+                switch (item.effect) {
+                    case 'goldBonus':
+                        points = Math.floor(points * (1 + item.value)); // +50% gold
+                        break;
+                    case 'richToss':
+                        points = Math.floor(points * (1 + item.value.goldBonus)); // +25% gold
+                        break;
+                    case 'bonusGold':
+                        if (Math.random() < 0.10) { // 10% chance
+                            points += item.value; // +5 bonus gold
+                            this.showMessage('JACKPOT EDGE! BONUS GOLD!');
+                        }
+                        break;
+                    case 'tenthFlipBonus':
+                        if (this.streak % 10 === 0) {
+                            points *= item.value; // Double gold every 10th flip
+                            this.showMessage('TWIN FATE! 10TH FLIP BONUS!');
+                        }
+                        break;
+                }
+            });
             
             // Apply workshop upgrades for points
             if (this.workshopUpgrades) {
@@ -1636,6 +1687,19 @@ Play at: ${window.location.href}`;
                 breakRiskModifier: 0,
                 effect: 'richToss',
                 value: { goldBonus: 0.25, winPenalty: -0.10 }
+            },
+            {
+                id: 'fortune_tuner',
+                name: 'Fortune Tuner',
+                icon: '🔮',
+                description: '+10% higher chance for positive events, -5% for negative ones',
+                rarity: 'rare',
+                price: 250,
+                durability: 8,
+                maxDurability: 8,
+                breakRiskModifier: 0,
+                effect: 'fortuneTuner',
+                value: { positiveBonus: 10, negativeReduction: -5 }
             }
         ];
     }
@@ -1921,7 +1985,78 @@ Play at: ${window.location.href}`;
         this.updateShopDisplay();
     }
     
-    // Repair method removed - items are destroyed when durability reaches 0
+    // Process active event effects
+    processActiveEventEffects(won) {
+        // Decrement duration-based effects
+        if (this.activeEffects.luckySurge > 0) {
+            this.activeEffects.luckySurge--;
+            if (this.activeEffects.luckySurge <= 0) {
+                delete this.activeEffects.luckySurge;
+                this.showMessage('LUCKY SURGE ENDED!');
+            }
+        }
+        
+        if (this.activeEffects.weightedCoin > 0) {
+            this.activeEffects.weightedCoin--;
+            if (this.activeEffects.weightedCoin <= 0) {
+                delete this.activeEffects.weightedCoin;
+                this.showMessage('WEIGHTED COIN EFFECT ENDED!');
+            }
+        }
+        
+        if (this.activeEffects.goldenShine > 0) {
+            this.activeEffects.goldenShine--;
+            if (this.activeEffects.goldenShine <= 0) {
+                delete this.activeEffects.goldenShine;
+                this.showMessage('GOLDEN SHINE ENDED!');
+            }
+        }
+        
+        if (this.activeEffects.mirageToss > 0) {
+            this.activeEffects.mirageToss--;
+            if (this.activeEffects.mirageToss <= 0) {
+                delete this.activeEffects.mirageToss;
+                this.showMessage('MIRAGE TOSS ENDED!');
+            }
+        }
+        
+        if (this.activeEffects.coinMimic && this.activeEffects.coinMimic.flips > 0) {
+            this.activeEffects.coinMimic.flips--;
+            if (this.activeEffects.coinMimic.flips <= 0) {
+                delete this.activeEffects.coinMimic;
+                this.showMessage('COIN MIMIC ENDED!');
+            }
+        }
+        
+        // One-time effects
+        if (this.activeEffects.blessedCoin) {
+            delete this.activeEffects.blessedCoin;
+        }
+        
+        if (this.activeEffects.misflip) {
+            delete this.activeEffects.misflip;
+        }
+        
+        if (this.activeEffects.reverseLuck) {
+            delete this.activeEffects.reverseLuck;
+        }
+        
+        if (this.activeEffects.safeFlip && !won) {
+            // Safe flip prevents streak loss
+            delete this.activeEffects.safeFlip;
+            this.showMessage('SAFE FLIP ACTIVATED! STREAK PROTECTED!');
+            return true; // Indicate streak was saved
+        }
+        
+        if (this.activeEffects.fakeFlip && won) {
+            // Fake flip makes win count as loss
+            delete this.activeEffects.fakeFlip;
+            this.showMessage('FAKE FLIP! WIN COUNTS AS LOSS!');
+            return false; // Force loss
+        }
+        
+        return won; // Return original result if no special effects
+    }
     
     saveInventory() {
         localStorage.setItem('inventory', JSON.stringify(this.inventory));
