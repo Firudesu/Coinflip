@@ -26,12 +26,17 @@ class CoinFlipGame {
         this.coinEffects = [];
         
         // Shop system
-        this.inventory = [null, null]; // Max 2 items
+        this.equippedItems = [null, null, null]; // 3 equip slots
         this.shopUnlocked = false;
-        this.shopAvailable = false; // Whether shop can be opened at current streak
-        this.lastShopStreak = 0;
+        this.shopAvailable = true; // Shop stays open forever once unlocked
         this.activeEffects = {}; // Track active item effects
         this.shopItems = this.defineShopItems();
+        this.shopRotationTimer = null;
+        this.shopRotationTime = 5 * 60 * 1000; // 5 minutes in milliseconds
+        this.currentShopItems = [];
+        this.itemDurability = {}; // Track durability for owned items
+        this.lastRotationTime = Date.now();
+        this.timerUpdateInterval = null;
         
         // Titles based on best streak
         this.titles = [
@@ -136,7 +141,7 @@ class CoinFlipGame {
             if (this.shopAvailable || this.streak === this.lastShopStreak) {
                 this.openShop();
             } else if (!this.shopUnlocked) {
-                this.showMessage('SHOP UNLOCKS AT 5 STREAK!');
+                this.showMessage('SHOP UNLOCKS AT 3 STREAK!');
             } else {
                 const nextShop = this.getNextShopStreak();
                 this.showMessage(`SHOP REOPENS AT STREAK ${nextShop}!`);
@@ -149,11 +154,15 @@ class CoinFlipGame {
             document.getElementById('floatingShopBtn').style.display = 'none';
         });
         
-        // Close shop button - marks shop as used for this streak
+        // Close shop button
         document.getElementById('closeShop').addEventListener('click', () => {
             document.getElementById('shopModal').classList.remove('show');
-            this.shopAvailable = false;  // Shop is now closed until next milestone
             document.getElementById('floatingShopBtn').style.display = 'none';
+        });
+        
+        // Close item selection
+        document.getElementById('closeItemSelection').addEventListener('click', () => {
+            document.getElementById('itemSelectionModal').classList.remove('show');
         });
         
         // Modal close button
@@ -171,8 +180,12 @@ class CoinFlipGame {
         
         // Inventory slots
         document.querySelectorAll('.inventory-slot').forEach((slot, index) => {
-            slot.addEventListener('click', () => {
-                this.useItem(index);
+            slot.addEventListener('click', (e) => {
+                if (e.target.classList.contains('unequip-btn')) {
+                    this.unequipItem(index);
+                } else {
+                    this.openItemSelection(index);
+                }
             });
         });
     }
@@ -197,6 +210,9 @@ class CoinFlipGame {
             console.log('Random events not initialized yet');
         }
         
+        // Process durability loss for equipped items
+        this.processDurabilityLoss();
+        
         this.isFlipping = true;
         this.canvas.classList.add('flipping', 'disabled');
         document.getElementById('choiceContainer').classList.add('hidden');
@@ -209,32 +225,27 @@ class CoinFlipGame {
             winChance += this.getUpgradeBonus('winChance');
         }
         
-        // Apply prediction buff
-        if (this.activeEffects.predictionBuff) {
-            winChance += this.activeEffects.predictionBuff;
+        // Apply equipped item effects
+        this.applyEquippedItemEffects();
+        
+        // Apply item win chance bonuses
+        if (this.activeEffects.winChance) {
+            winChance += this.activeEffects.winChance;
         }
         
-        // Apply steady core
-        if (this.activeEffects.steadyCore) {
-            winChance += 0.08;
+        // Apply hot hand bonus
+        if (this.activeEffects.hotHand && this.checkLastWins(3)) {
+            winChance += 0.05;
         }
         
-        // Apply edge bias
-        if (this.activeEffects.edgeBias) {
-            const edgeBiasTier = Math.min(this.activeEffects.edgeBias, 4);
-            const edgeBiasValues = [0.01, 0.02, 0.03, 0.05];
-            winChance += edgeBiasValues[edgeBiasTier - 1];
+        // Apply cold blooded bonus
+        if (this.activeEffects.coldBlooded && this.checkLastLosses(2)) {
+            winChance += 0.05;
         }
         
-        // Apply coin of paradox
-        if (this.activeEffects.coinParadox) {
-            winChance += 0.08;
-        }
-        
-        // Apply lucky charm (guaranteed win)
-        if (this.activeEffects.luckyCharm) {
-            winChance = 1;
-            this.activeEffects.luckyCharm = false;
+        // Apply jackpot fever
+        if (this.activeEffects.jackpotFever && Math.random() < 0.005) {
+            winChance = 1; // Guaranteed win for jackpot
         }
         
         let result = Math.random() < winChance ? this.playerChoice : 
@@ -322,6 +333,20 @@ class CoinFlipGame {
         
         if (won) {
             this.streak++;
+            
+            // Apply durability loss to equipped items
+            this.applyDurabilityLoss();
+            
+            // Apply restoration circuit upgrade
+            this.applyRestorationCircuit();
+            
+            // Apply restoration circuit upgrade
+            if (this.getUpgradeBonus) {
+                const restorationChance = this.getUpgradeBonus('restorationCircuit');
+                if (Math.random() < restorationChance) {
+                    this.restoreItemDurability();
+                }
+            }
             
             // Apply greed gauge
             let multiplierGrowth = 0.1;
@@ -905,24 +930,18 @@ class CoinFlipGame {
             this.showStreakAnnouncement();
         }
         
-        // Shop unlocks at streak 5 and opens immediately
-        if (this.streak === 5 && !this.shopUnlocked) {
+        // Shop unlocks at streak 3 and stays open forever
+        if (this.streak === 3 && !this.shopUnlocked) {
             this.shopUnlocked = true;
-            this.lastShopStreak = 5;
+            this.shopAvailable = true;
             localStorage.setItem('shopUnlocked', 'true');
             this.showShopUnlock();
+            // Start item rotation timer
+            this.startShopRotation();
             // Open shop automatically on first unlock
             setTimeout(() => {
                 this.openShop();
             }, 2000);
-        }
-        
-        // Shop reopens every 3 streaks after being unlocked (8, 11, 14, 17, 20, etc.)
-        if (this.shopUnlocked && this.streak > 5 && (this.streak - 5) % 3 === 0) {
-            // Shop is now available at this streak
-            this.shopAvailable = true;
-            this.lastShopStreak = this.streak;
-            this.showShopAvailable();
         }
         
         // Enable fire mode at streak 10
@@ -1408,220 +1427,160 @@ Play at: ${window.location.href}`;
     defineShopItems() {
         return [
             {
-                id: 'core_greed_engine',
-                name: 'Greed Engine',
-                icon: '⚙️',
-                description: 'Increase per-win multiplier growth from 0.1 to 0.15',
-                effect: 'Core equipment',
-                price: 3000,
-                rarity: 'rare',
-                category: 'Core',
+                id: 'lucky_charm',
+                name: 'Lucky Charm',
+                icon: '🍀',
+                description: '+2% win chance',
+                effect: 'Consistency boost',
+                price: 500,
+                rarity: 'common',
+                category: 'Basic',
                 type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { multiplier_gain: 0.15 },
-                apply: () => {
-                    this.activeEffects.greedEngine = true;
-                    this.showMessage('GREED ENGINE ACTIVE! +0.15 MULTIPLIER GAIN!');
-                }
+                durabilityLossChance: 0.01,
+                values: { win_chance: 0.02 }
             },
             {
-                id: 'core_steady',
-                name: 'Steady Core',
-                icon: '🎯',
-                description: 'Increase base win chance by +8%',
-                effect: 'Core equipment',
-                price: 3000,
-                rarity: 'rare',
-                category: 'Core',
-                type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { win_chance: 0.08 },
-                apply: () => {
-                    this.activeEffects.steadyCore = true;
-                    this.showMessage('STEADY CORE ACTIVE! +8% WIN CHANCE!');
-                }
-            },
-            {
-                id: 'core_doubletap',
-                name: 'Doubletap Core',
-                icon: '💥',
-                description: 'Every 5th correct flip counts as an extra win',
-                effect: 'Core equipment',
-                price: 7500,
-                rarity: 'epic',
-                category: 'Core',
-                type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { bonus_interval: 5 },
-                apply: () => {
-                    this.activeEffects.doubletapCore = true;
-                    this.showMessage('DOUBLETAP CORE ACTIVE! BONUS EVERY 5TH WIN!');
-                }
-            },
-            {
-                id: 'mod_double_streak',
-                name: 'Double Streak',
+                id: 'streak_booster',
+                name: 'Streak Booster',
                 icon: '📈',
-                description: 'Doubles per-win multiplier gain',
-                effect: 'Modifier equipment',
-                price: 4500,
-                rarity: 'rare',
-                category: 'Modifier',
-                type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { multiplier_x: 2 },
-                apply: () => {
-                    this.activeEffects.doubleStreak = true;
-                    this.showMessage('DOUBLE STREAK ACTIVE! 2X MULTIPLIER GAIN!');
-                }
-            },
-            {
-                id: 'mod_streak_saver',
-                name: 'Streak Saver',
-                icon: '🛡️',
-                description: '15% chance to keep streak on loss',
-                effect: 'Modifier equipment',
-                price: 6000,
-                rarity: 'epic',
-                category: 'Modifier',
-                type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { save_chance: 0.15 },
-                apply: () => {
-                    this.activeEffects.streakSaver = true;
-                    this.showMessage('STREAK SAVER ACTIVE! 15% SAVE CHANCE!');
-                }
-            },
-            {
-                id: 'mod_edge_bias',
-                name: 'Edge Bias',
-                icon: '⚖️',
-                description: '+1% to +5% base win chance per rarity level',
-                effect: 'Modifier equipment',
+                description: '+0.05 multiplier gain per correct flip',
+                effect: 'Core streak build item',
                 price: 800,
                 rarity: 'common',
-                category: 'Modifier',
+                category: 'Basic',
                 type: 'equip',
-                maxTier: 4,
-                tier: 1,
-                values: { win_chance: [0.01, 0.02, 0.03, 0.05] },
-                apply: () => {
-                    this.activeEffects.edgeBias = (this.activeEffects.edgeBias || 0) + 1;
-                    this.showMessage(`EDGE BIAS UPGRADED! TIER ${this.activeEffects.edgeBias}!`);
-                }
+                durabilityLossChance: 0.01,
+                values: { multiplier_gain: 0.05 }
             },
             {
-                id: 'util_bank_buffer',
-                name: 'Bank Buffer',
-                icon: '💰',
-                description: 'Gain +15% to +30% more when banking score',
-                effect: 'Utility equipment',
+                id: 'coin_saver',
+                name: 'Coin Saver',
+                icon: '🛡️',
+                description: '25% chance to not lose streak on fail',
+                effect: 'Defensive item',
                 price: 1200,
                 rarity: 'rare',
-                category: 'Utility',
+                category: 'Defense',
                 type: 'equip',
-                maxTier: 2,
-                tier: 1,
-                values: { bank_bonus: [0.15, 0.30] },
-                apply: () => {
-                    this.activeEffects.bankBuffer = (this.activeEffects.bankBuffer || 0) + 1;
-                    this.showMessage(`BANK BUFFER UPGRADED! TIER ${this.activeEffects.bankBuffer}!`);
-                }
+                durabilityLossChance: 0.02,
+                values: { save_chance: 0.25 }
             },
             {
-                id: 'util_insurance_module',
-                name: 'Insurance Module',
-                icon: '🔒',
-                description: 'On loss, recover 25% of streak score into bank (once per run)',
-                effect: 'Utility equipment',
-                price: 4000,
-                rarity: 'rare',
-                category: 'Utility',
-                type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { recover_pct: 0.25 },
-                apply: () => {
-                    this.activeEffects.insuranceModule = true;
-                    this.showMessage('INSURANCE MODULE ACTIVE! 25% RECOVERY!');
-                }
-            },
-            {
-                id: 'util_mirror_socket',
-                name: 'Mirror Socket',
+                id: 'mirror_coin',
+                name: 'Mirror Coin',
                 icon: '🪞',
-                description: 'Once per run, after a loss, flip twice and choose the result',
-                effect: 'Utility equipment',
-                price: 5500,
-                rarity: 'epic',
-                category: 'Utility',
-                type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { uses: 1 },
-                apply: () => {
-                    this.activeEffects.mirrorSocket = true;
-                    this.showMessage('MIRROR SOCKET ACTIVE! CHOOSE YOUR RESULT!');
-                }
-            },
-            {
-                id: 'battle_arena_edge',
-                name: 'Arena Edge',
-                icon: '⚔️',
-                description: '+10% win chance vs opponents in battle mode',
-                effect: 'Battle equipment',
-                price: 3500,
+                description: '10% chance to copy previous flip result',
+                effect: 'Great for pattern play',
+                price: 1500,
                 rarity: 'rare',
-                category: 'Battle',
+                category: 'Strategy',
                 type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { battle_win_chance: 0.1 },
-                apply: () => {
-                    this.activeEffects.arenaEdge = true;
-                    this.showMessage('ARENA EDGE ACTIVE! +10% BATTLE WIN CHANCE!');
-                }
+                durabilityLossChance: 0.02,
+                values: { copy_chance: 0.10 }
             },
             {
-                id: 'battle_wager_multiplier',
-                name: 'Wager Multiplier',
-                icon: '🎲',
-                description: 'Battle wins increase payout by 1.2x',
-                effect: 'Battle equipment',
-                price: 6500,
+                id: 'double_down',
+                name: 'Double Down',
+                icon: '💎',
+                description: 'After 5 correct flips, next flip reward x2',
+                effect: 'Mid-run risk–reward',
+                price: 2500,
                 rarity: 'epic',
-                category: 'Battle',
+                category: 'Risk',
                 type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { wager_mult: 1.2 },
-                apply: () => {
-                    this.activeEffects.wagerMultiplier = true;
-                    this.showMessage('WAGER MULTIPLIER ACTIVE! 1.2X BATTLE PAYOUTS!');
-                }
+                durabilityLossChance: 0.03,
+                values: { trigger_flips: 5, reward_multiplier: 2 }
             },
             {
-                id: 'legendary_coin_paradox',
-                name: 'Coin of Paradox',
-                icon: '🪙',
-                description: '+8% win chance, +5% streak save, +0.05 per-win multiplier',
-                effect: 'Legendary equipment',
-                price: 30000,
+                id: 'bank_magnet',
+                name: 'Bank Magnet',
+                icon: '💰',
+                description: '+10% bank value when cashing out',
+                effect: 'Economic playstyle',
+                price: 1000,
+                rarity: 'common',
+                category: 'Economy',
+                type: 'equip',
+                durabilityLossChance: 0.01,
+                values: { bank_bonus: 0.10 }
+            },
+            {
+                id: 'hot_hand',
+                name: 'Hot Hand',
+                icon: '🔥',
+                description: '+5% win chance if last 3 flips were wins',
+                effect: 'Builds momentum',
+                price: 1200,
+                rarity: 'rare',
+                category: 'Momentum',
+                type: 'equip',
+                durabilityLossChance: 0.02,
+                values: { win_chance: 0.05, required_wins: 3 }
+            },
+            {
+                id: 'cold_blooded',
+                name: 'Cold Blooded',
+                icon: '❄️',
+                description: '+5% win chance if last 2 flips were losses',
+                effect: 'Recovery-oriented build',
+                price: 1200,
+                rarity: 'rare',
+                category: 'Recovery',
+                type: 'equip',
+                durabilityLossChance: 0.02,
+                values: { win_chance: 0.05, required_losses: 2 }
+            },
+            {
+                id: 'risk_taker',
+                name: 'Risk Taker',
+                icon: '🎲',
+                description: 'Each consecutive win gives +0.15 multiplier, lose resets multiplier',
+                effect: 'High-risk scaling item',
+                price: 3000,
+                rarity: 'epic',
+                category: 'Scaling',
+                type: 'equip',
+                durabilityLossChance: 0.03,
+                values: { multiplier_per_win: 0.15 }
+            },
+            {
+                id: 'coin_splitter',
+                name: 'Coin Splitter',
+                icon: '⚡',
+                description: '5% chance for coin to double flip (two chances per guess)',
+                effect: 'RNG amplifier',
+                price: 3500,
+                rarity: 'epic',
+                category: 'RNG',
+                type: 'equip',
+                durabilityLossChance: 0.03,
+                values: { double_flip_chance: 0.05 }
+            },
+            {
+                id: 'multiplier_bond',
+                name: 'Multiplier Bond',
+                icon: '🔗',
+                description: 'Every 10 streaks adds +1 permanent multiplier until game over',
+                effect: 'Strong late-game scaling',
+                price: 6000,
                 rarity: 'legendary',
                 category: 'Legendary',
                 type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { win_chance: 0.08, save_chance: 0.05, multiplier_gain: 0.05 },
-                apply: () => {
-                    this.activeEffects.coinParadox = true;
-                    this.showMessage('COIN OF PARADOX ACTIVE! LEGENDARY POWERS!');
-                }
+                durabilityLossChance: 0.04,
+                values: { trigger_streaks: 10, multiplier_bonus: 1 }
+            },
+            {
+                id: 'jackpot_fever',
+                name: 'Jackpot Fever',
+                icon: '🎰',
+                description: '0.5% chance per flip to win 50× coins',
+                effect: 'Rare event item',
+                price: 10000,
+                rarity: 'legendary',
+                category: 'Legendary',
+                type: 'equip',
+                durabilityLossChance: 0.05,
+                values: { jackpot_chance: 0.005, jackpot_multiplier: 50 }
             }
         ];
     }
@@ -1629,13 +1588,7 @@ Play at: ${window.location.href}`;
     openShop() {
         // Check if shop should be accessible
         if (!this.shopUnlocked) {
-            this.showMessage('SHOP UNLOCKS AT 5 STREAK!');
-            return;
-        }
-        
-        if (!this.shopAvailable && this.streak !== this.lastShopStreak) {
-            const nextShop = this.getNextShopStreak();
-            this.showMessage(`SHOP REOPENS AT STREAK ${nextShop}!`);
+            this.showMessage('SHOP UNLOCKS AT 3 STREAK!');
             return;
         }
         
@@ -1660,34 +1613,196 @@ Play at: ${window.location.href}`;
         
         // Update status
         const statusEl = document.getElementById('shopStatus');
-        if (this.streak >= 5 && this.streak % 5 === 0) {
-            statusEl.textContent = 'NEW ITEMS AVAILABLE!';
-            statusEl.style.color = '#4ecdc4';
-        } else if (this.streak < 5) {
-            statusEl.textContent = 'STREAK 5+ TO UNLOCK';
+        const timerEl = document.getElementById('rotationTimer');
+        const timerDisplay = document.getElementById('timerDisplay');
+        
+        if (this.streak < 3) {
+            statusEl.textContent = 'STREAK 3+ TO UNLOCK';
             statusEl.style.color = '#ff6b6b';
+            timerEl.style.display = 'none';
         } else {
-            const nextShop = Math.ceil(this.streak / 5) * 5;
-            statusEl.textContent = `NEXT SHOP AT ${nextShop} STREAK`;
-            statusEl.style.color = '#ff6b6b';
+            statusEl.textContent = 'SHOP OPEN - ITEMS ROTATE EVERY 5 MINUTES';
+            statusEl.style.color = '#4ecdc4';
+            timerEl.style.display = 'block';
+            
+            // Update timer display
+            const timeLeft = this.getTimeUntilRotation();
+            timerDisplay.textContent = timeLeft;
         }
         
-        // Update inventory display
-        this.updateInventoryDisplay();
+        // Update equipped items display
+        this.updateEquippedItemsDisplay();
+    }
+    
+    restoreItemDurability() {
+        this.equippedItems.forEach((item, index) => {
+            if (item && this.itemDurability[item.id] < 100) {
+                const currentDurability = this.itemDurability[item.id];
+                const restoreAmount = 1; // Restore 1% per trigger
+                this.itemDurability[item.id] = Math.min(100, currentDurability + restoreAmount);
+                
+                if (this.itemDurability[item.id] === 100) {
+                    this.showMessage(`${item.name} FULLY RESTORED!`);
+                } else {
+                    this.showMessage(`${item.name} PARTIALLY RESTORED!`);
+                }
+            }
+        });
+    }
+    
+    openItemSelection(slotIndex) {
+        // Check if slot is unlocked
+        if (slotIndex === 1 && this.streak < 10) {
+            this.showMessage('SLOT 2 UNLOCKS AT STREAK 10!');
+            return;
+        }
+        if (slotIndex === 2 && this.streak < 25) {
+            this.showMessage('SLOT 3 UNLOCKS AT STREAK 25!');
+            return;
+        }
+        
+        this.selectedSlot = slotIndex;
+        this.showOwnedItems();
+        document.getElementById('itemSelectionModal').classList.add('show');
+    }
+    
+    showOwnedItems() {
+        const ownedItemsDiv = document.getElementById('ownedItems');
+        ownedItemsDiv.innerHTML = '';
+        
+        if (!this.itemDurability) {
+            ownedItemsDiv.innerHTML = '<p>No items owned yet!</p>';
+            return;
+        }
+        
+        Object.entries(this.itemDurability).forEach(([itemId, data]) => {
+            if (data.owned) {
+                const item = this.shopItems.find(i => i.id === itemId);
+                if (item) {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'owned-item';
+                    
+                    const isEquipped = this.equippedItems.includes(item);
+                    const isBroken = data.durability <= 0;
+                    
+                    if (isEquipped) {
+                        itemDiv.classList.add('equipped');
+                    }
+                    if (isBroken) {
+                        itemDiv.classList.add('broken');
+                    }
+                    
+                    itemDiv.innerHTML = `
+                        <div class="item-icon">${item.icon}</div>
+                        <div class="item-info">
+                            <div class="item-name">${item.name}</div>
+                            <div class="item-durability">Durability: ${Math.round(data.durability)}%</div>
+                            <div class="item-rarity rarity-${item.rarity}">${item.rarity.toUpperCase()}</div>
+                        </div>
+                        <div class="item-actions">
+                            ${isEquipped ? '<span class="equipped-text">EQUIPPED</span>' : 
+                              isBroken ? '<button class="repair-btn" data-item="${itemId}">REPAIR</button>' :
+                              '<button class="equip-btn" data-item="${itemId}">EQUIP</button>'}
+                        </div>
+                    `;
+                    
+                    // Add event listeners
+                    const equipBtn = itemDiv.querySelector('.equip-btn');
+                    const repairBtn = itemDiv.querySelector('.repair-btn');
+                    
+                    if (equipBtn) {
+                        equipBtn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            this.equipItem(itemId);
+                        });
+                    }
+                    
+                    if (repairBtn) {
+                        repairBtn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            this.repairItem(itemId);
+                        });
+                    }
+                    
+                    ownedItemsDiv.appendChild(itemDiv);
+                }
+            }
+        });
+    }
+    
+    equipItem(itemId) {
+        const item = this.shopItems.find(i => i.id === itemId);
+        if (!item) return;
+        
+        // Check if legendary and already have one equipped
+        if (item.rarity === 'legendary') {
+            const hasLegendary = this.equippedItems.some(eq => eq && eq.rarity === 'legendary');
+            if (hasLegendary) {
+                this.showMessage('ONLY 1 LEGENDARY ITEM ALLOWED!');
+                return;
+            }
+        }
+        
+        // Equip item
+        this.equippedItems[this.selectedSlot] = item;
+        this.updateEquippedItemsDisplay();
+        this.applyEquippedItemEffects();
+        this.showMessage(`EQUIPPED ${item.name}!`);
+        
+        // Close modal
+        document.getElementById('itemSelectionModal').classList.remove('show');
+    }
+    
+    repairItem(itemId) {
+        const item = this.shopItems.find(i => i.id === itemId);
+        if (!item) return;
+        
+        let repairCost = Math.floor(item.price * (0.25 + Math.random() * 0.25)); // 25-50% of price
+        
+        // Apply workshop upgrades for repair cost reduction
+        if (this.getUpgradeBonus) {
+            const alloyBonus = this.getUpgradeBonus('reinforcedAlloy');
+            repairCost = Math.floor(repairCost * (1 - alloyBonus * 0.5)); // 50% of alloy bonus reduces repair cost
+        }
+        
+        if (this.bank < repairCost) {
+            this.showMessage(`NEED ${repairCost} COINS TO REPAIR!`);
+            return;
+        }
+        
+        this.bank -= repairCost;
+        this.itemDurability[itemId].durability = 100;
+        localStorage.setItem('bank', this.bank);
+        
+        this.showMessage(`REPAIRED ${item.name} FOR ${repairCost} COINS!`);
+        this.updateDisplay();
+        this.showOwnedItems();
+    }
+    
+    getTimeUntilRotation() {
+        if (!this.lastRotationTime) return '5:00';
+        
+        const now = Date.now();
+        const timeSinceLastRotation = now - this.lastRotationTime;
+        const timeLeft = Math.max(0, this.shopRotationTime - timeSinceLastRotation);
+        
+        const minutes = Math.floor(timeLeft / 60000);
+        const seconds = Math.floor((timeLeft % 60000) / 1000);
+        
+        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
     }
     
     generateShopStock() {
         const shopItemsDiv = document.getElementById('shopItems');
         shopItemsDiv.innerHTML = '';
         
-        // Rotate stock - show 6 random items
-        const availableItems = [...this.shopItems];
-        const stock = [];
-        
-        for (let i = 0; i < Math.min(6, availableItems.length); i++) {
-            const randomIndex = Math.floor(Math.random() * availableItems.length);
-            stock.push(availableItems.splice(randomIndex, 1)[0]);
+        // If no current items, generate new ones
+        if (this.currentShopItems.length === 0) {
+            this.currentShopItems = this.selectRandomShopItems(4);
         }
+        
+        // Show current items
+        const stock = this.currentShopItems;
         
         stock.forEach(item => {
             const scaledPrice = Math.round(item.price * (1 + this.streak * 0.05)); // Price scales with streak
@@ -1707,7 +1822,7 @@ Play at: ${window.location.href}`;
                 <div class="item-title">${item.name}</div>
                 <div class="item-description">${item.description}</div>
                 <div class="item-effect">${item.effect}</div>
-                <div class="item-uses">Uses: ${item.uses}</div>
+                <div class="item-durability">Durability Loss: ${(item.durabilityLossChance * 100).toFixed(1)}% per flip</div>
             `;
             
             itemDiv.addEventListener('click', () => {
@@ -1724,24 +1839,19 @@ Play at: ${window.location.href}`;
             return;
         }
         
-        // Check inventory space
-        const emptySlot = this.inventory.findIndex(slot => slot === null);
-        if (emptySlot === -1) {
-            this.showMessage('INVENTORY FULL! USE AN ITEM FIRST!');
-            return;
-        }
-        
         // Purchase item
         this.bank -= price;
         localStorage.setItem('bank', this.bank);
         
-        // Add to inventory
-        this.inventory[emptySlot] = {
-            ...item,
-            uses: item.uses
-        };
+        // Add to owned items with full durability
+        if (!this.itemDurability[item.id]) {
+            this.itemDurability[item.id] = {
+                durability: 100,
+                owned: true
+            };
+        }
         
-        this.showMessage(`PURCHASED ${item.name.toUpperCase()}!`);
+        this.showMessage(`PURCHASED ${item.name.toUpperCase()}! ITEM ADDED TO COLLECTION!`);
         this.updateDisplay();
         this.updateShopDisplay();
         this.generateShopStock(); // Refresh shop
@@ -1752,19 +1862,64 @@ Play at: ${window.location.href}`;
         } catch(e) {}
     }
     
-    updateInventoryDisplay() {
+    startShopRotation() {
+        if (this.shopRotationTimer) {
+            clearInterval(this.shopRotationTimer);
+        }
+        
+        this.shopRotationTimer = setInterval(() => {
+            this.rotateShopItems();
+        }, this.shopRotationTime);
+        
+        // Generate initial items
+        this.currentShopItems = this.selectRandomShopItems(4);
+    }
+    
+    selectRandomShopItems(count) {
+        const availableItems = [...this.shopItems];
+        const selected = [];
+        
+        for (let i = 0; i < Math.min(count, availableItems.length); i++) {
+            const randomIndex = Math.floor(Math.random() * availableItems.length);
+            selected.push(availableItems.splice(randomIndex, 1)[0]);
+        }
+        
+        return selected;
+    }
+    
+    rotateShopItems() {
+        this.currentShopItems = this.selectRandomShopItems(4);
+        this.showMessage('SHOP ITEMS ROTATED! NEW SELECTION AVAILABLE!');
+        
+        // Update shop display if open
+        if (document.getElementById('shopModal').classList.contains('show')) {
+            this.generateShopStock();
+        }
+    }
+    
+    updateEquippedItemsDisplay() {
         const slots = document.querySelectorAll('.inventory-slot');
         
         slots.forEach((slot, index) => {
-            const item = this.inventory[index];
+            const item = this.equippedItems[index];
             
             if (item) {
+                const durability = this.itemDurability[item.id]?.durability || 100;
+                const isBroken = durability <= 0;
+                
                 slot.classList.remove('empty');
+                if (isBroken) {
+                    slot.classList.add('broken');
+                } else {
+                    slot.classList.remove('broken');
+                }
+                
                 slot.innerHTML = `
                     <div class="item-in-slot">
                         <span class="item-icon">${item.icon}</span>
                         <span class="item-name">${item.name}</span>
-                        <span class="item-uses">Uses: ${item.uses}</span>
+                        <span class="item-durability">Durability: ${durability}%</span>
+                        <span class="item-rarity">${item.rarity.toUpperCase()}</span>
                     </div>
                 `;
             } else {
@@ -1871,6 +2026,222 @@ Play at: ${window.location.href}`;
         }, 5000);
     }
     
+    startShopRotation() {
+        if (this.shopRotationTimer) {
+            clearInterval(this.shopRotationTimer);
+        }
+        
+        this.shopRotationTimer = setInterval(() => {
+            this.rotateShopItems();
+        }, this.shopRotationTime);
+        
+        // Generate initial items
+        this.currentShopItems = this.selectRandomShopItems(4);
+    }
+    
+    selectRandomShopItems(count) {
+        const availableItems = [...this.shopItems];
+        const selected = [];
+        
+        for (let i = 0; i < Math.min(count, availableItems.length); i++) {
+            const randomIndex = Math.floor(Math.random() * availableItems.length);
+            selected.push(availableItems.splice(randomIndex, 1)[0]);
+        }
+        
+        return selected;
+    }
+    
+    rotateShopItems() {
+        this.currentShopItems = this.selectRandomShopItems(4);
+        this.showMessage('SHOP ITEMS ROTATED! NEW SELECTION AVAILABLE!');
+        
+        // Update shop display if open
+        if (document.getElementById('shopModal').classList.contains('show')) {
+            this.generateShopStock();
+        }
+    }
+    
+    updateEquippedItemsDisplay() {
+        const slots = document.querySelectorAll('.inventory-slot');
+        
+        slots.forEach((slot, index) => {
+            const item = this.equippedItems[index];
+            
+            if (item) {
+                slot.classList.remove('empty');
+                const durability = this.itemDurability[item.id] || 100;
+                const isBroken = durability <= 0;
+                slot.innerHTML = `
+                    <div class="item-in-slot ${isBroken ? 'broken' : ''}">
+                        <span class="item-icon">${item.icon}</span>
+                        <span class="item-name">${item.name}</span>
+                        <span class="item-durability">Durability: ${durability}%</span>
+                        ${isBroken ? '<span class="broken-text">BROKEN!</span>' : ''}
+                        <button class="unequip-btn" data-slot="${index}">UNEQUIP</button>
+                        ${isBroken ? `<button class="repair-btn" data-item="${item.id}">REPAIR</button>` : ''}
+                    </div>
+                `;
+            } else {
+                slot.classList.add('empty');
+                slot.innerHTML = '<span class="slot-empty">EMPTY</span>';
+            }
+        });
+    }
+    
+    applyDurabilityLoss() {
+        this.equippedItems.forEach((item, index) => {
+            if (item && this.itemDurability[item.id] > 0) {
+                let lossChance = item.durabilityLossChance || 0.01;
+                
+                // Apply reinforced alloy upgrade
+                if (this.getUpgradeBonus) {
+                    const alloyBonus = this.getUpgradeBonus('reinforcedAlloy');
+                    lossChance *= (1 - alloyBonus);
+                }
+                
+                // Apply fortune memory upgrade
+                if (this.getUpgradeBonus) {
+                    const fortuneBonus = this.getUpgradeBonus('fortuneMemory');
+                    if (Math.random() < fortuneBonus) {
+                        return; // Prevent durability loss
+                    }
+                }
+                
+                if (Math.random() < lossChance) {
+                    const currentDurability = this.itemDurability[item.id];
+                    const lossAmount = Math.random() * 3 + 1; // 1-3% loss
+                    this.itemDurability[item.id] = Math.max(0, currentDurability - lossAmount);
+                    
+                    if (this.itemDurability[item.id] <= 0) {
+                        this.showMessage(`${item.name} BROKE! NEEDS REPAIR!`);
+                        this.updateEquippedItemsDisplay();
+                    }
+                }
+            }
+        });
+    }
+    
+    applyRestorationCircuit() {
+        if (this.getUpgradeBonus) {
+            const repairChance = this.getUpgradeBonus('restorationCircuit');
+            if (Math.random() < repairChance) {
+                // Repair 1 durability point on a random equipped item
+                const equippedItems = this.equippedItems.filter(item => item && this.itemDurability[item.id] < 100);
+                if (equippedItems.length > 0) {
+                    const randomItem = equippedItems[Math.floor(Math.random() * equippedItems.length)];
+                    this.itemDurability[randomItem.id] = Math.min(100, this.itemDurability[randomItem.id] + 1);
+                    this.showMessage(`RESTORATION CIRCUIT! ${randomItem.name} REPAIRED!`);
+                }
+            }
+        }
+    }
+    
+    applyEquippedItemEffects() {
+        // Reset active effects from items
+        this.activeEffects = {};
+        
+        this.equippedItems.forEach((item, index) => {
+            if (item && this.itemDurability[item.id] > 0) {
+                this.applyItemEffect(item);
+            }
+        });
+    }
+    
+    applyItemEffect(item) {
+        const values = item.values;
+        
+        switch (item.id) {
+            case 'lucky_charm':
+                this.activeEffects.winChance = (this.activeEffects.winChance || 0) + values.win_chance;
+                break;
+            case 'streak_booster':
+                this.activeEffects.multiplierGain = (this.activeEffects.multiplierGain || 0) + values.multiplier_gain;
+                break;
+            case 'coin_saver':
+                this.activeEffects.saveChance = (this.activeEffects.saveChance || 0) + values.save_chance;
+                break;
+            case 'mirror_coin':
+                this.activeEffects.copyChance = (this.activeEffects.copyChance || 0) + values.copy_chance;
+                break;
+            case 'double_down':
+                this.activeEffects.doubleDown = true;
+                break;
+            case 'bank_magnet':
+                this.activeEffects.bankBonus = (this.activeEffects.bankBonus || 0) + values.bank_bonus;
+                break;
+            case 'hot_hand':
+                this.activeEffects.hotHand = true;
+                break;
+            case 'cold_blooded':
+                this.activeEffects.coldBlooded = true;
+                break;
+            case 'risk_taker':
+                this.activeEffects.riskTaker = true;
+                break;
+            case 'coin_splitter':
+                this.activeEffects.doubleFlipChance = (this.activeEffects.doubleFlipChance || 0) + values.double_flip_chance;
+                break;
+            case 'multiplier_bond':
+                this.activeEffects.multiplierBond = true;
+                break;
+            case 'jackpot_fever':
+                this.activeEffects.jackpotFever = true;
+                break;
+        }
+    }
+    
+    // Shop Rotation System
+    startShopRotation() {
+        if (this.shopRotationTimer) {
+            clearInterval(this.shopRotationTimer);
+        }
+        
+        // Generate initial shop items
+        this.generateShopStock();
+        
+        // Set up rotation timer
+        this.shopRotationTimer = setInterval(() => {
+            this.generateShopStock();
+            this.updateShopDisplay();
+        }, this.shopRotationTime);
+        
+        // Start countdown display
+        this.startRotationCountdown();
+    }
+    
+    startRotationCountdown() {
+        const countdownElement = document.getElementById('rotationCountdown');
+        if (!countdownElement) return;
+        
+        let timeLeft = this.shopRotationTime / 1000; // Convert to seconds
+        
+        const updateCountdown = () => {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = Math.floor(timeLeft % 60);
+            countdownElement.textContent = `New items in ${minutes}:${seconds.toString().padStart(2, '0')}`;
+            
+            if (timeLeft <= 0) {
+                timeLeft = this.shopRotationTime / 1000;
+            } else {
+                timeLeft--;
+                setTimeout(updateCountdown, 1000);
+            }
+        };
+        
+        updateCountdown();
+    }
+    
+    generateShopStock() {
+        // Show only 4 items at once
+        const availableItems = [...this.shopItems];
+        this.currentShopItems = [];
+        
+        for (let i = 0; i < Math.min(4, availableItems.length); i++) {
+            const randomIndex = Math.floor(Math.random() * availableItems.length);
+            this.currentShopItems.push(availableItems.splice(randomIndex, 1)[0]);
+        }
+    }
+    
     triggerShadowBet() {
         const wager = Math.floor(this.score / 2);
         if (wager <= 0) {
@@ -1895,6 +2266,203 @@ Play at: ${window.location.href}`;
             
             this.updateDisplay();
         }, 1500);
+    }
+    
+    equipItem(itemId) {
+        const item = this.shopItems.find(i => i.id === itemId);
+        if (!item) return;
+        
+        // Check if already owned
+        if (!this.itemDurability[itemId]?.owned) {
+            this.showMessage('ITEM NOT OWNED! PURCHASE IT FIRST!');
+            return;
+        }
+        
+        // Check if item is broken
+        if (this.itemDurability[itemId].durability <= 0) {
+            this.showMessage('ITEM IS BROKEN! REPAIR IT FIRST!');
+            return;
+        }
+        
+        // Check legendary limit
+        if (item.rarity === 'legendary') {
+            const hasLegendary = this.equippedItems.some(eq => eq && eq.rarity === 'legendary');
+            if (hasLegendary) {
+                this.showMessage('ONLY 1 LEGENDARY ITEM CAN BE EQUIPPED!');
+                return;
+            }
+        }
+        
+        // Find empty slot
+        const emptySlot = this.equippedItems.findIndex(slot => slot === null);
+        if (emptySlot === -1) {
+            this.showMessage('NO EMPTY EQUIP SLOTS! UNEQUIP AN ITEM FIRST!');
+            return;
+        }
+        
+        // Equip item
+        this.equippedItems[emptySlot] = item;
+        this.applyItemEffects();
+        this.updateEquippedItemsDisplay();
+        this.showMessage(`EQUIPPED ${item.name.toUpperCase()}!`);
+    }
+    
+    unequipItem(slotIndex) {
+        const item = this.equippedItems[slotIndex];
+        if (!item) return;
+        
+        this.equippedItems[slotIndex] = null;
+        this.applyItemEffects();
+        this.updateEquippedItemsDisplay();
+        this.showMessage(`UNEQUIPPED ${item.name.toUpperCase()}!`);
+    }
+    
+    applyItemEffects() {
+        // Clear all active effects
+        this.activeEffects = {};
+        
+        // Apply effects from equipped items
+        this.equippedItems.forEach(item => {
+            if (!item) return;
+            
+            const durability = this.itemDurability[item.id]?.durability || 100;
+            if (durability <= 0) return; // Don't apply effects if broken
+            
+            switch (item.id) {
+                case 'lucky_charm':
+                    this.activeEffects.luckyCharm = item.values.win_chance;
+                    break;
+                case 'streak_booster':
+                    this.activeEffects.streakBooster = item.values.multiplier_gain;
+                    break;
+                case 'coin_saver':
+                    this.activeEffects.coinSaver = item.values.save_chance;
+                    break;
+                case 'mirror_coin':
+                    this.activeEffects.mirrorCoin = item.values.copy_chance;
+                    break;
+                case 'double_down':
+                    this.activeEffects.doubleDown = item.values;
+                    break;
+                case 'bank_magnet':
+                    this.activeEffects.bankMagnet = item.values.bank_bonus;
+                    break;
+                case 'hot_hand':
+                    this.activeEffects.hotHand = item.values;
+                    break;
+                case 'cold_blooded':
+                    this.activeEffects.coldBlooded = item.values;
+                    break;
+                case 'risk_taker':
+                    this.activeEffects.riskTaker = item.values.multiplier_per_win;
+                    break;
+                case 'coin_splitter':
+                    this.activeEffects.coinSplitter = item.values.double_flip_chance;
+                    break;
+                case 'multiplier_bond':
+                    this.activeEffects.multiplierBond = item.values;
+                    break;
+                case 'jackpot_fever':
+                    this.activeEffects.jackpotFever = item.values;
+                    break;
+            }
+        });
+    }
+    
+    processDurabilityLoss() {
+        this.equippedItems.forEach((item, slotIndex) => {
+            if (!item) return;
+            
+            const durabilityData = this.itemDurability[item.id];
+            if (!durabilityData || durabilityData.durability <= 0) return;
+            
+            // Check if durability should be lost
+            if (Math.random() < item.durabilityLossChance) {
+                const lossAmount = Math.random() * 3 + 1; // 1-3% loss
+                durabilityData.durability = Math.max(0, durabilityData.durability - lossAmount);
+                
+                if (durabilityData.durability <= 0) {
+                    this.showMessage(`${item.name.toUpperCase()} BROKE! REPAIR NEEDED!`);
+                    // Unequip broken item
+                    this.equippedItems[slotIndex] = null;
+                    this.applyItemEffects();
+                }
+                
+                this.updateEquippedItemsDisplay();
+            }
+        });
+    }
+    
+    repairItem(itemId) {
+        const item = this.shopItems.find(i => i.id === itemId);
+        if (!item) return;
+        
+        const durabilityData = this.itemDurability[itemId];
+        if (!durabilityData || durabilityData.durability >= 100) return;
+        
+        let repairCost = Math.floor(item.price * (0.25 + Math.random() * 0.25)); // 25-50% of price
+        
+        // Apply workshop upgrades to reduce repair cost
+        if (this.getUpgradeBonus) {
+            const costReduction = this.getUpgradeBonus('restorationCircuit') * 0.1; // 10% reduction per level
+            repairCost = Math.floor(repairCost * (1 - costReduction));
+        }
+        
+        if (this.bank < repairCost) {
+            this.showMessage(`NOT ENOUGH COINS! REPAIR COSTS ${repairCost}!`);
+            return;
+        }
+        
+        this.bank -= repairCost;
+        durabilityData.durability = 100;
+        localStorage.setItem('bank', this.bank);
+        
+        this.updateDisplay();
+        this.updateEquippedItemsDisplay();
+        this.showMessage(`REPAIRED ${item.name.toUpperCase()} FOR ${repairCost} COINS!`);
+    }
+    
+    openItemSelection(slotIndex) {
+        // Show owned items for selection
+        const ownedItems = Object.keys(this.itemDurability).filter(id => this.itemDurability[id].owned);
+        if (ownedItems.length === 0) {
+            this.showMessage('NO ITEMS OWNED! BUY SOME FROM THE SHOP!');
+            return;
+        }
+        
+        // Create item selection modal
+        const modal = document.createElement('div');
+        modal.className = 'modal show';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <h2>SELECT ITEM TO EQUIP</h2>
+                <div class="item-selection">
+                    ${ownedItems.map(id => {
+                        const item = this.shopItems.find(i => i.id === id);
+                        const durability = this.itemDurability[id].durability;
+                        return `
+                            <div class="selectable-item ${durability <= 0 ? 'broken' : ''}" data-item-id="${id}">
+                                <span class="item-icon">${item.icon}</span>
+                                <span class="item-name">${item.name}</span>
+                                <span class="item-durability">Durability: ${durability}%</span>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+                <button class="pixel-btn close-btn" onclick="this.parentElement.parentElement.remove()">CANCEL</button>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Add click handlers
+        modal.querySelectorAll('.selectable-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const itemId = item.dataset.itemId;
+                this.equipItem(itemId, slotIndex);
+                modal.remove();
+            });
+        });
     }
 }
 

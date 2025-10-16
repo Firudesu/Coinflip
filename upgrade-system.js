@@ -9,7 +9,10 @@ CoinFlipGame.prototype.initUpgradeSystem = function() {
         luckySurge: { level: 0, max: 5, baseCost: 200, multiplier: 3 },
         battleBonus: { level: 0, max: 10, baseCost: 150, multiplier: 1.5 },
         bankBoost: { level: 0, max: 5, baseCost: 60, multiplier: 2 },
-        charmSlot: { level: 0, max: 2, baseCost: 500, multiplier: 3 }
+        charmSlot: { level: 0, max: 2, baseCost: 500, multiplier: 3 },
+        reinforcedAlloy: { level: 0, max: 5, baseCost: 300, multiplier: 2 },
+        restorationCircuit: { level: 0, max: 3, baseCost: 500, multiplier: 2.5 },
+        fortuneMemory: { level: 0, max: 3, baseCost: 600, multiplier: 3 }
     };
     
     this.workshopUnlocked = false;
@@ -89,6 +92,33 @@ CoinFlipGame.prototype.defineUpgrades = function() {
             effect: (level) => `+${level} slot${level > 1 ? 's' : ''}`,
             tier: 4,
             getValue: (level) => level,
+            category: 'master'
+        },
+        reinforcedAlloy: {
+            name: 'Reinforced Alloy',
+            icon: '🔧',
+            description: 'Reduces item durability loss chance',
+            effect: (level) => `-${level * 15}% durability loss`,
+            tier: 4,
+            getValue: (level) => level * 0.15,
+            category: 'advanced'
+        },
+        restorationCircuit: {
+            name: 'Restoration Circuit',
+            icon: '⚡',
+            description: 'Chance to repair durability after wins',
+            effect: (level) => `${level * 10}% repair chance`,
+            tier: 5,
+            getValue: (level) => level * 0.10,
+            category: 'master'
+        },
+        fortuneMemory: {
+            name: 'Fortune Memory',
+            icon: '🧠',
+            description: 'Chance to prevent durability loss',
+            effect: (level) => `${level * 2}% prevention chance`,
+            tier: 6,
+            getValue: (level) => level * 0.02,
             category: 'master'
         }
     };
