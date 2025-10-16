@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tavern Coin Flip Game</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="tavern-background">
+        <div class="game-container">
+            <h1 class="game-title">Tavern Coin Flip</h1>
+            <p class="game-subtitle">Test your luck in the old tavern!</p>
+            
+            <div class="coin-container">
+                <div class="coin" id="coin">
+                    <div class="coin-face heads">
+                        <span>HEADS</span>
+                    </div>
+                    <div class="coin-face tails">
+                        <span>TAILS</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="controls">
+                <button id="flipBtn" class="flip-button">Flip Coin</button>
+            </div>
+            
+            <div class="result-container">
+                <p id="result" class="result-text"></p>
+                <p id="streak" class="streak-text">Current Streak: 0</p>
+            </div>
+            
+            <div class="stats">
+                <div class="stat-item">
+                    <span class="stat-label">Heads:</span>
+                    <span id="headsCount" class="stat-value">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Tails:</span>
+                    <span id="tailsCount" class="stat-value">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Total Flips:</span>
+                    <span id="totalFlips" class="stat-value">0</span>
+                </div>
+            </div>
+            
+            <button id="resetBtn" class="reset-button">Reset Stats</button>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
