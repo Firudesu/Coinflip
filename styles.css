@@ -46,7 +46,7 @@ body {
     height: auto;
     max-height: 168px;
     display: block;
-    margin: -10px 0 0 -5%;
+    margin: -20px 0 0 -5%;
     image-rendering: pixelated;
     image-rendering: -moz-crisp-edges;
     image-rendering: crisp-edges;
@@ -1902,7 +1902,7 @@ body {
 @media (max-width: 600px) {
     .village-image {
         width: 113%;
-        margin: -8px 0 0 -6.5%;
+        margin: -18px 0 0 -6.5%;
         max-height: 116px;
     }
     
