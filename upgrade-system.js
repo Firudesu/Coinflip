@@ -180,7 +180,7 @@ CoinFlipGame.prototype.setupWorkshopListeners = function() {
 
 CoinFlipGame.prototype.openWorkshop = function() {
     if (!this.workshopUnlocked) {
-        this.showMessage('REACH STREAK 5 TO UNLOCK WORKSHOP!');
+        this.showMessage('WIN A BATTLE TO UNLOCK WORKSHOP!');
         return;
     }
     
@@ -388,7 +388,7 @@ CoinFlipGame.prototype.updateCoinVisuals = function() {
 };
 
 CoinFlipGame.prototype.checkWorkshopUnlock = function() {
-    if (this.bestStreak >= 5 && !this.workshopUnlocked) {
+    if (this.battleMode && this.battleMode.wins >= 1 && !this.workshopUnlocked) {
         this.workshopUnlocked = true;
         localStorage.setItem('workshopUnlocked', 'true');
         this.showMessage('WORKSHOP UNLOCKED! UPGRADE YOUR COIN!');
