@@ -1763,4 +1763,38 @@ document.head.appendChild(style);
 // Initialize game when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     window.game = new CoinFlipGame();
+    
+    // Check if tavern background image loads successfully
+    checkTavernBackground();
 });
+
+// Function to check tavern background image loading
+function checkTavernBackground() {
+    const possibleImages = [
+        'tavern.png',
+        'tavern.jpg', 
+        'tavern.jpeg',
+        'tavern.svg',
+        'tavern image.png'
+    ];
+    
+    let imageLoaded = false;
+    let checkedImages = 0;
+    
+    possibleImages.forEach(imagePath => {
+        const img = new Image();
+        img.onload = () => {
+            imageLoaded = true;
+            console.log(`Tavern background loaded: ${imagePath}`);
+            document.body.classList.remove('no-image');
+        };
+        img.onerror = () => {
+            checkedImages++;
+            if (checkedImages === possibleImages.length && !imageLoaded) {
+                console.log('No tavern image found, using fallback background');
+                document.body.classList.add('no-image');
+            }
+        };
+        img.src = imagePath;
+    });
+}

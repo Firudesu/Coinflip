@@ -8,7 +8,14 @@
 
 body {
     font-family: 'Press Start 2P', monospace;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    /* Tavern background with fallback gradient */
+    background: 
+        url('tavern.png') center center / cover no-repeat,
+        url('tavern.jpg') center center / cover no-repeat,
+        url('tavern.jpeg') center center / cover no-repeat,
+        url('tavern.svg') center center / cover no-repeat,
+        url('tavern image.png') center center / cover no-repeat,
+        linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     min-height: 100vh;
     display: flex;
     justify-content: center;
@@ -16,20 +23,28 @@ body {
     image-rendering: pixelated;
     image-rendering: -moz-crisp-edges;
     image-rendering: crisp-edges;
+    /* Ensure background covers entire viewport */
+    background-attachment: fixed;
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
 }
 
 .game-container {
-    background: #2a2a2a;
+    background: rgba(42, 42, 42, 0.95);
     border: 4px solid #000;
     border-radius: 0;
     padding: 30px;
     box-shadow: 
         0 0 0 4px #4a4a4a,
         0 0 0 8px #000,
-        0 20px 40px rgba(0, 0, 0, 0.5);
+        0 20px 40px rgba(0, 0, 0, 0.8);
     max-width: 600px;
     width: 90%;
     text-align: center;
+    /* Enhanced backdrop for better visibility over tavern background */
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
 }
 
 .game-title {
@@ -1874,6 +1889,84 @@ body {
     margin: 10px;
 }
 
+/* Tavern Background Styles */
+.tavern-background {
+    /* Additional tavern-specific styling if needed */
+    position: relative;
+}
+
+/* Fallback tavern-like background if image doesn't load */
+.tavern-background::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        /* Wood grain pattern simulation */
+        repeating-linear-gradient(
+            90deg,
+            #8B4513 0px,
+            #A0522D 2px,
+            #8B4513 4px,
+            #654321 6px
+        ),
+        /* Stone texture overlay */
+        repeating-linear-gradient(
+            45deg,
+            rgba(139, 69, 19, 0.1) 0px,
+            transparent 1px,
+            transparent 2px,
+            rgba(139, 69, 19, 0.1) 3px
+        ),
+        /* Base tavern color */
+        linear-gradient(
+            135deg,
+            #2F1B14 0%,
+            #4A2C2A 25%,
+            #654321 50%,
+            #3E2723 75%,
+            #1A0E0A 100%
+        );
+    opacity: 0;
+    pointer-events: none;
+    z-index: -2;
+    transition: opacity 0.5s ease;
+}
+
+/* Show fallback only if tavern image fails to load */
+.tavern-background.no-image::after {
+    opacity: 1;
+}
+
+.tavern-background::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.1);
+    pointer-events: none;
+    z-index: -1;
+}
+
+/* Ensure modals have proper backdrop over tavern background */
+.modal {
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+}
+
+.modal-content,
+.shop-content,
+.battle-content,
+.workshop-content {
+    background: rgba(42, 42, 42, 0.98);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+}
+
 @media (max-width: 600px) {
     .game-title {
         font-size: 18px;
@@ -1894,5 +1987,17 @@ body {
     
     #announcementText {
         font-size: 16px;
+    }
+    
+    /* Mobile-specific background adjustments */
+    body {
+        background-attachment: scroll;
+        background-size: cover;
+    }
+    
+    .game-container {
+        background: rgba(42, 42, 42, 0.98);
+        backdrop-filter: blur(3px);
+        -webkit-backdrop-filter: blur(3px);
     }
 }

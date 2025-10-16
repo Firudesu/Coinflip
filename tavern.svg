@@ -1,0 +1,59 @@
+<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
+  <!-- Tavern Background -->
+  <defs>
+    <pattern id="woodGrain" patternUnits="userSpaceOnUse" width="4" height="4">
+      <rect width="4" height="4" fill="#8B4513"/>
+      <rect width="2" height="4" fill="#A0522D"/>
+    </pattern>
+    <pattern id="stonePattern" patternUnits="userSpaceOnUse" width="20" height="20">
+      <rect width="20" height="20" fill="#654321"/>
+      <rect x="0" y="0" width="10" height="10" fill="#5D4037"/>
+      <rect x="10" y="10" width="10" height="10" fill="#5D4037"/>
+    </pattern>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="800" height="600" fill="url(#stonePattern)"/>
+  
+  <!-- Floor -->
+  <rect x="0" y="400" width="800" height="200" fill="url(#woodGrain)"/>
+  
+  <!-- Back Wall -->
+  <rect x="0" y="0" width="800" height="400" fill="#3E2723"/>
+  
+  <!-- Wooden Beams -->
+  <rect x="100" y="0" width="20" height="400" fill="#5D4037"/>
+  <rect x="300" y="0" width="20" height="400" fill="#5D4037"/>
+  <rect x="500" y="0" width="20" height="400" fill="#5D4037"/>
+  <rect x="700" y="0" width="20" height="400" fill="#5D4037"/>
+  
+  <!-- Horizontal Beam -->
+  <rect x="0" y="100" width="800" height="15" fill="#5D4037"/>
+  
+  <!-- Tavern Tables -->
+  <ellipse cx="200" cy="450" rx="60" ry="30" fill="#8B4513"/>
+  <ellipse cx="600" cy="450" rx="60" ry="30" fill="#8B4513"/>
+  
+  <!-- Barrels -->
+  <ellipse cx="50" cy="350" rx="25" ry="40" fill="#654321"/>
+  <ellipse cx="750" cy="350" rx="25" ry="40" fill="#654321"/>
+  
+  <!-- Fireplace -->
+  <rect x="350" y="200" width="100" height="150" fill="#2E2E2E"/>
+  <rect x="360" y="210" width="80" height="130" fill="#1A1A1A"/>
+  
+  <!-- Fire -->
+  <polygon points="380,320 400,280 420,320" fill="#FF4500"/>
+  <polygon points="385,310 400,270 415,310" fill="#FF6500"/>
+  <polygon points="390,300 400,260 410,300" fill="#FFD700"/>
+  
+  <!-- Lanterns -->
+  <rect x="150" y="80" width="8" height="30" fill="#8B4513"/>
+  <ellipse cx="154" cy="95" rx="12" ry="8" fill="#FFD700" opacity="0.8"/>
+  
+  <rect x="650" y="80" width="8" height="30" fill="#8B4513"/>
+  <ellipse cx="654" cy="95" rx="12" ry="8" fill="#FFD700" opacity="0.8"/>
+  
+  <!-- Atmospheric overlay -->
+  <rect width="800" height="600" fill="rgba(0,0,0,0.2)"/>
+</svg>
