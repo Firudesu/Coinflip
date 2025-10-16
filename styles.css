@@ -8,7 +8,20 @@
 
 body {
     font-family: 'Press Start 2P', monospace;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: 
+        /* Tavern background pattern */
+        radial-gradient(circle at 20% 80%, rgba(139, 69, 19, 0.3) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(160, 82, 45, 0.2) 0%, transparent 50%),
+        radial-gradient(circle at 40% 40%, rgba(101, 67, 33, 0.1) 0%, transparent 50%),
+        /* Wooden tavern floor */
+        linear-gradient(45deg, #8B4513 25%, transparent 25%), 
+        linear-gradient(-45deg, #8B4513 25%, transparent 25%), 
+        linear-gradient(45deg, transparent 75%, #A0522D 75%), 
+        linear-gradient(-45deg, transparent 75%, #A0522D 75%),
+        /* Base tavern colors */
+        linear-gradient(135deg, #2F1B14 0%, #8B4513 25%, #A0522D 50%, #D2691E 75%, #CD853F 100%);
+    background-size: 60px 60px, 60px 60px, 60px 60px, 60px 60px, 60px 60px, 60px 60px, 60px 60px, 100% 100%;
+    background-position: 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0;
     min-height: 100vh;
     display: flex;
     justify-content: center;
@@ -16,20 +29,81 @@ body {
     image-rendering: pixelated;
     image-rendering: -moz-crisp-edges;
     image-rendering: crisp-edges;
+    position: relative;
+}
+
+/* Tavern atmosphere overlay */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: 
+        /* Warm tavern lighting */
+        radial-gradient(ellipse at center, rgba(255, 165, 0, 0.1) 0%, transparent 70%),
+        /* Subtle wood grain texture */
+        repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 2px,
+            rgba(139, 69, 19, 0.1) 2px,
+            rgba(139, 69, 19, 0.1) 4px
+        ),
+        /* Warm ambient lighting */
+        linear-gradient(135deg, rgba(255, 140, 0, 0.05) 0%, rgba(255, 69, 0, 0.02) 100%);
+    pointer-events: none;
+    z-index: -1;
 }
 
 .game-container {
-    background: #2a2a2a;
-    border: 4px solid #000;
+    background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+    border: 4px solid #8B4513;
     border-radius: 0;
     padding: 30px;
     box-shadow: 
-        0 0 0 4px #4a4a4a,
-        0 0 0 8px #000,
-        0 20px 40px rgba(0, 0, 0, 0.5);
+        0 0 0 4px #A0522D,
+        0 0 0 8px #8B4513,
+        0 20px 40px rgba(0, 0, 0, 0.7),
+        inset 0 0 20px rgba(255, 140, 0, 0.1);
     max-width: 600px;
     width: 90%;
     text-align: center;
+    position: relative;
+    backdrop-filter: blur(2px);
+}
+
+/* Tavern-style decorative elements */
+.game-container::before {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: -8px;
+    right: -8px;
+    bottom: -8px;
+    background: linear-gradient(45deg, #8B4513, #A0522D, #8B4513);
+    z-index: -1;
+    border-radius: 2px;
+}
+
+.game-container::after {
+    content: '';
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    background: 
+        repeating-linear-gradient(
+            90deg,
+            transparent,
+            transparent 4px,
+            rgba(255, 140, 0, 0.1) 4px,
+            rgba(255, 140, 0, 0.1) 8px
+        );
+    pointer-events: none;
+    z-index: 1;
 }
 
 .game-title {
