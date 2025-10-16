@@ -8,7 +8,11 @@
 
 body {
     font-family: 'Press Start 2P', monospace;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-image: url('tavern image.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
     min-height: 100vh;
     display: flex;
     justify-content: center;
@@ -16,20 +20,35 @@ body {
     image-rendering: pixelated;
     image-rendering: -moz-crisp-edges;
     image-rendering: crisp-edges;
+    position: relative;
+}
+
+body::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: -1;
 }
 
 .game-container {
-    background: #2a2a2a;
+    background: rgba(42, 42, 42, 0.95);
+    backdrop-filter: blur(5px);
     border: 4px solid #000;
     border-radius: 0;
     padding: 30px;
     box-shadow: 
         0 0 0 4px #4a4a4a,
         0 0 0 8px #000,
-        0 20px 40px rgba(0, 0, 0, 0.5);
+        0 20px 40px rgba(0, 0, 0, 0.7);
     max-width: 600px;
     width: 90%;
     text-align: center;
+    position: relative;
+    z-index: 1;
 }
 
 .game-title {
@@ -454,7 +473,8 @@ body {
 }
 
 .modal-content {
-    background: #2a2a2a;
+    background: rgba(42, 42, 42, 0.98);
+    backdrop-filter: blur(8px);
     border: 4px solid #ffd700;
     padding: 30px;
     max-width: 600px;
@@ -786,7 +806,8 @@ body {
 
 /* Item Shop Styles */
 .shop-content {
-    background: #2a2a2a;
+    background: rgba(42, 42, 42, 0.98);
+    backdrop-filter: blur(8px);
     border: 4px solid #00ffff;
     padding: 20px;
     max-width: 800px;
@@ -1085,7 +1106,8 @@ body {
 
 /* Battle Mode Styles */
 .battle-content {
-    background: #2a2a2a;
+    background: rgba(42, 42, 42, 0.98);
+    backdrop-filter: blur(8px);
     border: 4px solid #ff0000;
     padding: 20px;
     max-width: 900px;
@@ -1421,7 +1443,8 @@ body {
 }
 
 .workshop-content {
-    background: #2a2a2a;
+    background: rgba(42, 42, 42, 0.98);
+    backdrop-filter: blur(8px);
     border: 4px solid #9c27b0;
     padding: 20px;
     max-width: 900px;
@@ -1644,7 +1667,8 @@ body {
     position: fixed;
     top: 10%;
     right: -400px;
-    background: #2a2a2a;
+    background: rgba(42, 42, 42, 0.95);
+    backdrop-filter: blur(5px);
     border: 3px solid #ffd700;
     padding: 15px 20px;
     z-index: 5000;
@@ -1852,7 +1876,8 @@ body {
 }
 
 .decision-content {
-    background: #2a2a2a;
+    background: rgba(42, 42, 42, 0.98);
+    backdrop-filter: blur(8px);
     border: 3px solid #ff5722;
     padding: 30px;
     text-align: center;
