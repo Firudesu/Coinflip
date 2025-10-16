@@ -108,17 +108,24 @@ class CoinFlipGame {
         // Choice buttons - clicking immediately flips the coin or triggers battle
         document.querySelectorAll('.choice-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                console.log('Button clicked, isFlipping:', this.isFlipping, 'eventActive:', this.eventActive);
+                // Button clicked
                 
                 if (!this.isFlipping && !this.eventActive) {
                     this.playerChoice = e.target.closest('.choice-btn').dataset.choice;
                     this.highlightChoice(this.playerChoice);
                     
-                    // DISABLED: Battle trigger for debugging
-                    console.log('Calling flipCoin()');
-                    this.flipCoin();
-                } else {
-                    console.log('Click blocked - isFlipping:', this.isFlipping, 'eventActive:', this.eventActive);
+                    // Check for battle trigger
+                    if (this.checkForBattle && this.checkForBattle()) {
+                        // Battle triggered, don't flip
+                        this.showMessage('BATTLE INCOMING!');
+                        setTimeout(() => {
+                            this.openBattleMode();
+                            document.getElementById('floatingBattleBtn').style.display = 'none';
+                        }, 1000);
+                    } else {
+                        // Normal flip
+                        this.flipCoin();
+                    }
                 }
             });
         });
@@ -200,7 +207,7 @@ class CoinFlipGame {
     }
     
     flipCoin() {
-        console.log('flipCoin() called, isFlipping:', this.isFlipping);
+        // flipCoin() called
         
         if (this.isFlipping) {
             console.log('Flip blocked - already flipping');
@@ -213,11 +220,21 @@ class CoinFlipGame {
             this.flipAnimation = null;
         }
         
-        // DISABLED: Random events causing issues
-        // Will re-enable after fixing
-        console.log('Random events disabled for debugging');
+        // Check for random event before flip
+        try {
+            if (this.checkForRandomEvent) {
+                const eventTriggered = this.checkForRandomEvent();
+                if (eventTriggered) {
+                    console.log('Random event triggered!');
+                }
+            } else {
+                console.log('Random events not initialized yet');
+            }
+        } catch (error) {
+            console.error('Error in random event check:', error);
+        }
         
-        console.log('Starting flip animation...');
+        // Starting flip animation
         this.isFlipping = true;
         this.canvas.classList.add('flipping', 'disabled');
         document.getElementById('choiceContainer').classList.add('hidden');
@@ -268,6 +285,7 @@ class CoinFlipGame {
         let velocity = -8; // Initial upward velocity
         const gravity = 0.4;
         
+        // Starting animation interval
         this.flipAnimation = setInterval(() => {
             frame++;
             
@@ -339,8 +357,14 @@ class CoinFlipGame {
         
         // Durability only processes on losses, not wins
         
-        // DISABLED: Event effects processing
-        console.log('Event effects processing disabled for debugging');
+        // Process active event effects (basic processing only)
+        try {
+            if (this.activeEffects) {
+                this.processActiveEventEffects(won);
+            }
+        } catch (error) {
+            console.error('Error processing event effects:', error);
+        }
         
         if (won) {
             this.streak++;
@@ -348,7 +372,10 @@ class CoinFlipGame {
             // Apply equipped item effects for multiplier growth
             let multiplierGrowth = 0.1;
             
-            // DISABLED: Momentum Engine upgrade (using different name now)
+            // Apply Streak Booster workshop upgrade
+            if (this.workshopUpgrades && this.workshopUpgrades.streakBooster && this.workshopUpgrades.streakBooster.level > 0) {
+                multiplierGrowth += this.workshopUpgrades.streakBooster.level * 0.05;
+            }
             
             this.equippedItems.forEach(item => {
                 if (!item || item.durability <= 0) return;
@@ -407,7 +434,20 @@ class CoinFlipGame {
             
             // Apply workshop upgrades for points
             if (this.workshopUpgrades) {
-                // DISABLED: Workshop upgrade effects (using different names now)
+                // Golden Edge: +5% more gold earned per win
+                if (this.workshopUpgrades && this.workshopUpgrades.goldenEdge && this.workshopUpgrades.goldenEdge.level > 0) {
+                    const goldBonus = this.workshopUpgrades.goldenEdge.level * 0.05;
+                    points = Math.floor(points * (1 + goldBonus));
+                }
+                
+                // Coin Echo: +1% chance per level that a win triggers a free bonus flip
+                if (this.workshopUpgrades && this.workshopUpgrades.coinEcho && this.workshopUpgrades.coinEcho.level > 0) {
+                    const echoChance = this.workshopUpgrades.coinEcho.level * 0.01;
+                    if (Math.random() < echoChance) {
+                        this.showMessage('COIN ECHO! BONUS FLIP COMING!');
+                        // Could add bonus flip logic here
+                    }
+                }
             }
             
             // Apply equipped item effects for points
@@ -480,7 +520,17 @@ class CoinFlipGame {
             const lostScore = this.score;
             const lostStreak = this.streak;
             
-            // DISABLED: Second Chance upgrade (using different name now)
+            // Check for Flip Forgiveness workshop upgrade
+            if (this.workshopUpgrades && this.workshopUpgrades.flipForgiveness && this.workshopUpgrades.flipForgiveness.level > 0) {
+                const forgiveChance = this.workshopUpgrades.flipForgiveness.level * 0.05;
+                if (Math.random() < forgiveChance) {
+                    this.showMessage('FLIP FORGIVENESS! LOSS IGNORED!');
+                    setTimeout(() => {
+                        this.forceResetGameState();
+                    }, 1000);
+                    return;
+                }
+            }
             
             // Apply equipped item streak save effects
             let streakSaved = false;
@@ -556,8 +606,8 @@ class CoinFlipGame {
             this.disableFireMode();
             this.updateCoinEffects();
             
-            // DISABLED: Safety Net upgrade (using different name now)
-            const keepMultiplier = false;
+            // Check Safety Toss workshop upgrade
+            const keepMultiplier = this.workshopUpgrades && this.workshopUpgrades.safetyToss && this.workshopUpgrades.safetyToss.level > 0;
             
             // Reset score, streak, and multiplier on loss
             this.score = 0;
@@ -1943,7 +1993,7 @@ Play at: ${window.location.href}`;
         }
         
         this.showMessage('CLICK HEADS OR TAILS TO FLIP!');
-        console.log('Game state force reset - isFlipping:', this.isFlipping);
+        // Game state reset
     }
     
     // Process active event effects
@@ -2031,7 +2081,10 @@ Play at: ${window.location.href}`;
         // New durability system: only triggered on losing flips
         let baseBreakChance = 10; // 10% base break chance
         
-        // DISABLED: Streak Protector upgrade
+        // Apply Streak Protector workshop upgrade
+        if (this.workshopUpgrades && this.workshopUpgrades.streakProtector && this.workshopUpgrades.streakProtector.level > 0) {
+            baseBreakChance -= (this.workshopUpgrades.streakProtector.level * 2);
+        }
         
         // Check each equipped item for potential breaking
         this.equippedItems.forEach((item, index) => {
