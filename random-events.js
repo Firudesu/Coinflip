@@ -5,442 +5,425 @@ CoinFlipGame.prototype.initRandomEvents = function() {
     this.eventActive = false;
     this.currentEvent = null;
     this.eventHistory = [];
-    this.eventChance = 0.08; // 8% base chance per flip
     
-    // Define all events
+    // Define all events by tier
     this.randomEvents = this.defineRandomEvents();
 };
 
 CoinFlipGame.prototype.defineRandomEvents = function() {
     return {
-        // COIN MUTATIONS
-        coinGlitch: {
-            name: 'Coin Glitch',
-            type: 'mutation',
-            minStreak: 0,
-            description: 'Coin flickers rapidly!',
-            effect: 'Double multiplier if right, lose half bank if wrong',
-            visual: 'glitch',
-            execute: (won) => {
-                if (won) {
-                    this.multiplier *= 2;
-                    this.showEventResult('GLITCH SUCCESS! MULTIPLIER DOUBLED!');
-                } else {
-                    const loss = Math.floor(this.bank / 2);
+        // POSITIVE EVENTS
+        common: {
+            luckySurge: {
+                name: 'Lucky Surge',
+                tier: 'common',
+                weight: 15,
+                description: '+10% win rate for next 3 flips',
+                effect: '+10% win chance for 3 flips',
+                execute: () => {
+                    this.activeEffects.luckySurge = 3;
+                    this.showEventResult('LUCKY SURGE! +10% WIN CHANCE FOR 3 FLIPS!');
+                }
+            },
+            coinWindfall: {
+                name: 'Coin Windfall',
+                tier: 'common',
+                weight: 15,
+                description: '+30 gold instantly',
+                effect: 'Instant gold bonus',
+                execute: () => {
+                    this.bank += 30;
+                    localStorage.setItem('bank', this.bank);
+                    this.showEventResult('COIN WINDFALL! +30 GOLD!');
+                }
+            },
+            safeFlip: {
+                name: 'Safe Flip',
+                tier: 'common',
+                weight: 10,
+                description: 'Next flip can\'t break streak',
+                effect: 'Streak protection',
+                execute: () => {
+                    this.activeEffects.safeFlip = true;
+                    this.showEventResult('SAFE FLIP! NEXT FLIP CAN\'T BREAK STREAK!');
+                }
+            },
+            charmDrop: {
+                name: 'Charm Drop',
+                tier: 'common',
+                weight: 10,
+                description: '+1 durability to random item',
+                effect: 'Item repair',
+                execute: () => {
+                    const equippedItems = this.equippedItems.filter(item => item && item.durability < item.maxDurability);
+                    if (equippedItems.length > 0) {
+                        const randomItem = equippedItems[Math.floor(Math.random() * equippedItems.length)];
+                        randomItem.durability = Math.min(randomItem.maxDurability, randomItem.durability + 1);
+                        this.showEventResult(`CHARM DROP! ${randomItem.name.toUpperCase()} +1 DURABILITY!`);
+                        this.saveEquippedItems();
+                    } else {
+                        this.showEventResult('CHARM DROP! NO ITEMS TO REPAIR!');
+                    }
+                }
+            },
+            doubleOrNothing: {
+                name: 'Double or Nothing',
+                tier: 'common',
+                weight: 25,
+                description: 'Next flip = double win or double loss',
+                effect: 'High risk, high reward',
+                execute: () => {
+                    this.activeEffects.doubleOrNothing = true;
+                    this.showEventResult('DOUBLE OR NOTHING! NEXT FLIP DOUBLED!');
+                }
+            },
+            mirageToss: {
+                name: 'Mirage Toss',
+                tier: 'common',
+                weight: 20,
+                description: 'Flip result hidden for 3 turns',
+                effect: 'Mystery flips',
+                execute: () => {
+                    this.activeEffects.mirageToss = 3;
+                    this.showEventResult('MIRAGE TOSS! RESULTS HIDDEN FOR 3 FLIPS!');
+                }
+            },
+            rustSpread: {
+                name: 'Rust Spread',
+                tier: 'common',
+                weight: 20,
+                description: '-1 durability on random item',
+                effect: 'Item damage',
+                execute: () => {
+                    const equippedItems = this.equippedItems.filter(item => item && item.durability > 0);
+                    if (equippedItems.length > 0) {
+                        const randomItem = equippedItems[Math.floor(Math.random() * equippedItems.length)];
+                        randomItem.durability = Math.max(0, randomItem.durability - 1);
+                        if (randomItem.durability <= 0) {
+                            this.showEventResult(`RUST SPREAD! ${randomItem.name.toUpperCase()} DESTROYED!`);
+                            const index = this.equippedItems.indexOf(randomItem);
+                            this.equippedItems[index] = null;
+                        } else {
+                            this.showEventResult(`RUST SPREAD! ${randomItem.name.toUpperCase()} -1 DURABILITY!`);
+                        }
+                        this.saveEquippedItems();
+                    } else {
+                        this.showEventResult('RUST SPREAD! NO ITEMS TO DAMAGE!');
+                    }
+                }
+            },
+            weightedCoin: {
+                name: 'Weighted Coin',
+                tier: 'common',
+                weight: 15,
+                description: '-10% win chance for 3 flips',
+                effect: 'Temporary disadvantage',
+                execute: () => {
+                    this.activeEffects.weightedCoin = 3;
+                    this.showEventResult('WEIGHTED COIN! -10% WIN CHANCE FOR 3 FLIPS!');
+                }
+            },
+            misflip: {
+                name: 'Misflip',
+                tier: 'common',
+                weight: 10,
+                description: 'Next flip forced loss',
+                effect: 'Guaranteed loss',
+                execute: () => {
+                    this.activeEffects.misflip = true;
+                    this.showEventResult('MISFLIP! NEXT FLIP WILL LOSE!');
+                }
+            }
+        },
+        rare: {
+            goldenShine: {
+                name: 'Golden Shine',
+                tier: 'rare',
+                weight: 15,
+                description: 'Double gold for next 2 flips',
+                effect: 'Enhanced rewards',
+                execute: () => {
+                    this.activeEffects.goldenShine = 2;
+                    this.showEventResult('GOLDEN SHINE! DOUBLE GOLD FOR 2 FLIPS!');
+                }
+            },
+            echoToss: {
+                name: 'Echo Toss',
+                tier: 'rare',
+                weight: 10,
+                description: 'Free bonus flip (no streak risk)',
+                effect: 'Risk-free flip',
+                execute: () => {
+                    this.activeEffects.echoToss = true;
+                    this.showEventResult('ECHO TOSS! FREE BONUS FLIP!');
+                }
+            },
+            workshopFind: {
+                name: 'Workshop Find',
+                tier: 'rare',
+                weight: 10,
+                description: '+50 gold for workshop',
+                effect: 'Workshop bonus',
+                execute: () => {
+                    this.bank += 50;
+                    localStorage.setItem('bank', this.bank);
+                    this.showEventResult('WORKSHOP FIND! +50 GOLD!');
+                }
+            },
+            streakSwap: {
+                name: 'Streak Swap',
+                tier: 'rare',
+                weight: 25,
+                description: 'Halve streak, double gold',
+                effect: 'Risk/reward trade',
+                execute: () => {
+                    const oldStreak = this.streak;
+                    this.streak = Math.floor(this.streak / 2);
+                    this.score *= 2;
+                    this.showEventResult(`STREAK SWAP! ${oldStreak} → ${this.streak} STREAK, DOUBLE GOLD!`);
+                }
+            },
+            coinMimic: {
+                name: 'Coin Mimic',
+                tier: 'rare',
+                weight: 20,
+                description: 'Temporarily copy one equipped item (3 flips)',
+                effect: 'Item duplication',
+                execute: () => {
+                    const equippedItems = this.equippedItems.filter(item => item);
+                    if (equippedItems.length > 0) {
+                        const randomItem = equippedItems[Math.floor(Math.random() * equippedItems.length)];
+                        this.activeEffects.coinMimic = { item: randomItem, flips: 3 };
+                        this.showEventResult(`COIN MIMIC! COPYING ${randomItem.name.toUpperCase()} FOR 3 FLIPS!`);
+                    } else {
+                        this.showEventResult('COIN MIMIC! NO ITEMS TO COPY!');
+                    }
+                }
+            },
+            greedTax: {
+                name: 'Greed Tax',
+                tier: 'rare',
+                weight: 15,
+                description: 'Lose 10% of banked gold',
+                effect: 'Bank penalty',
+                execute: () => {
+                    const loss = Math.floor(this.bank * 0.1);
                     this.bank = Math.max(0, this.bank - loss);
                     localStorage.setItem('bank', this.bank);
-                    this.showEventResult(`GLITCH FAIL! LOST ${loss} FROM BANK!`);
+                    this.showEventResult(`GREED TAX! LOST ${loss} GOLD!`);
+                }
+            },
+            streakLeak: {
+                name: 'Streak Leak',
+                tier: 'rare',
+                weight: 15,
+                description: '-0.5 to streak multiplier',
+                effect: 'Multiplier penalty',
+                execute: () => {
+                    this.multiplier = Math.max(1.0, this.multiplier - 0.5);
+                    this.showEventResult('STREAK LEAK! -0.5 MULTIPLIER!');
+                }
+            },
+            fakeFlip: {
+                name: 'Fake Flip',
+                tier: 'rare',
+                weight: 10,
+                description: 'Appears as win, counts as loss',
+                effect: 'Deceptive result',
+                execute: () => {
+                    this.activeEffects.fakeFlip = true;
+                    this.showEventResult('FAKE FLIP! BEWARE OF DECEPTION!');
                 }
             }
         },
-        
-        doubleFlip: {
-            name: 'Double Flip',
-            type: 'mutation',
-            minStreak: 5,
-            description: 'Two coins appear!',
-            effect: 'Guess both for x3 reward',
-            visual: 'double',
-            execute: () => {
-                this.showEventResult('DOUBLE FLIP! CHOOSE TWICE!');
-                this.pendingDoubleFlip = true;
-            }
-        },
-        
-        heavyCoin: {
-            name: 'Heavy Coin',
-            type: 'mutation',
-            minStreak: 0,
-            description: 'Coin spins slower',
-            effect: 'Can lock in guess early for bonus',
-            visual: 'slow',
-            execute: () => {
-                this.flipSpeed = 40; // Slower animation
-                this.showEventResult('HEAVY COIN! TAP TO LOCK IN!');
-            }
-        },
-        
-        ghostCoin: {
-            name: 'Ghost Coin',
-            type: 'mutation',
-            minStreak: 3,
-            description: 'Result hidden briefly',
-            effect: '2 second suspense',
-            visual: 'ghost',
-            execute: (won) => {
-                this.hideResult = true;
-                setTimeout(() => {
-                    this.hideResult = false;
-                    this.showEventResult(won ? 'GHOST REVEALED: WIN!' : 'GHOST REVEALED: LOSS!');
-                }, 2000);
-            }
-        },
-        
-        magnetFlip: {
-            name: 'Magnet Flip',
-            type: 'mutation',
-            minStreak: 10,
-            description: 'Coin lands on edge!',
-            effect: '50/50 reflip, outcome doubled',
-            visual: 'edge',
-            execute: () => {
-                this.showEventResult('EDGE LANDING! REFLIPPING...');
-                this.edgeReflip = true;
-                this.scoreMultiplier = 2;
-            }
-        },
-        
-        // RANDOM REWARDS
-        luckySpark: {
-            name: 'Lucky Spark',
-            type: 'reward',
-            minStreak: 0,
-            description: 'Sparks fly!',
-            effect: '+0.1 multiplier bonus',
-            visual: 'spark',
-            execute: () => {
-                this.multiplier += 0.1;
-                this.showEventResult('LUCKY SPARK! +0.1 MULTIPLIER!');
-                this.createSparkEffect();
-            }
-        },
-        
-        coinDrop: {
-            name: 'Coin Drop',
-            type: 'reward',
-            minStreak: 0,
-            description: 'Coins fall out!',
-            effect: 'Free bank bonus',
-            visual: 'coins',
-            execute: () => {
-                const bonus = 10 + Math.floor(Math.random() * 91); // 10-100
-                this.bank += bonus;
-                localStorage.setItem('bank', this.bank);
-                this.showEventResult(`COIN DROP! +${bonus} COINS!`);
-                this.createCoinRain(bonus);
-            }
-        },
-        
-        mysteryChest: {
-            name: 'Mystery Chest',
-            type: 'reward',
-            minStreak: 5,
-            description: 'A chest appears!',
-            effect: 'Win = item, Lose = nothing',
-            visual: 'chest',
-            execute: (won) => {
-                if (won) {
-                    this.showEventResult('CHEST OPENED! ITEM GAINED!');
-                    // Give random item or bonus
-                    this.grantRandomItem();
-                } else {
-                    this.showEventResult('CHEST LOCKED!');
+        epic: {
+            blessedCoin: {
+                name: 'Blessed Coin',
+                tier: 'epic',
+                weight: 15,
+                description: 'Guarantees one winning flip soon',
+                effect: 'Guaranteed win',
+                execute: () => {
+                    this.activeEffects.blessedCoin = true;
+                    this.showEventResult('BLESSED COIN! NEXT FLIP GUARANTEED WIN!');
                 }
-            }
-        },
-        
-        goldenFlash: {
-            name: 'Golden Flash',
-            type: 'reward',
-            minStreak: 15,
-            description: 'Golden light!',
-            effect: 'Next flip guaranteed win',
-            visual: 'golden',
-            rarity: 0.01, // 1% chance
-            execute: () => {
-                this.activeEffects.goldenFlash = true;
-                this.showEventResult('GOLDEN FLASH! NEXT FLIP GUARANTEED!');
-                this.createGoldenEffect();
-            }
-        },
-        
-        // RANDOM RISKS
-        cursedFlip: {
-            name: 'Cursed Flip',
-            type: 'risk',
-            minStreak: 15,
-            description: 'Coin turns dark!',
-            effect: 'Win drops multiplier, lose resets streak',
-            visual: 'cursed',
-            execute: (won) => {
-                if (won) {
-                    this.multiplier = Math.max(1, this.multiplier - 0.2);
-                    this.showEventResult('CURSED WIN! MULTIPLIER DROPPED!');
-                } else {
-                    this.showEventResult('CURSED LOSS! STREAK RESET!');
+            },
+            reverseLuck: {
+                name: 'Reverse Luck',
+                tier: 'epic',
+                weight: 20,
+                description: 'Win/loss logic inverted for next flip',
+                effect: 'Inverted logic',
+                execute: () => {
+                    this.activeEffects.reverseLuck = true;
+                    this.showEventResult('REVERSE LUCK! WIN/LOSS INVERTED NEXT FLIP!');
                 }
-                this.createCurseEffect();
-            }
-        },
-        
-        staticInterference: {
-            name: 'Static',
-            type: 'risk',
-            minStreak: 10,
-            description: 'Display distorts!',
-            effect: 'Input lag',
-            visual: 'static',
-            execute: () => {
-                this.showEventResult('STATIC INTERFERENCE!');
-                document.getElementById('gameContainer').classList.add('static-effect');
-                setTimeout(() => {
-                    document.getElementById('gameContainer').classList.remove('static-effect');
-                }, 3000);
-            }
-        },
-        
-        greedyCoin: {
-            name: 'Greedy Coin',
-            type: 'risk',
-            minStreak: 8,
-            description: 'Coin demands decision!',
-            effect: 'Must bank or continue immediately',
-            visual: 'greedy',
-            execute: (won) => {
-                if (won) {
-                    this.showEventResult('GREEDY COIN! BANK OR CONTINUE NOW!');
-                    this.forceDecision = true;
-                    this.showBankOrContinue();
-                }
-            }
-        },
-        
-        reverseFlip: {
-            name: 'Reverse Flip',
-            type: 'risk',
-            minStreak: 5,
-            description: 'Outcome reverses!',
-            effect: 'Heads becomes Tails',
-            visual: 'reverse',
-            execute: () => {
-                this.reverseResult = true;
-                this.showEventResult('REVERSE FLIP! OUTCOMES SWAPPED!');
-            }
-        },
-        
-        // SKILL MOMENTS
-        timingWindow: {
-            name: 'Perfect Timing',
-            type: 'skill',
-            minStreak: 3,
-            description: 'Timing bar appears!',
-            effect: 'Hit perfect = +0.2 multiplier',
-            visual: 'timing',
-            execute: () => {
-                this.showTimingBar();
-            }
-        },
-        
-        catchTheCoin: {
-            name: 'Catch!',
-            type: 'skill',
-            minStreak: 5,
-            description: 'Catch the coin!',
-            effect: 'Success = +50 coins',
-            visual: 'catch',
-            execute: () => {
-                this.startCatchMiniGame();
-            }
-        },
-        
-        coinChase: {
-            name: 'Rolling Away!',
-            type: 'skill',
-            minStreak: 10,
-            description: 'Coin rolls off!',
-            effect: 'Tap to save streak',
-            visual: 'chase',
-            execute: () => {
-                this.startChaseMiniGame();
-            }
-        },
-        
-        // SPECIAL ENCOUNTERS
-        coinSpirit: {
-            name: 'Coin Spirit',
-            type: 'encounter',
-            minStreak: 20,
-            description: 'A spirit appears!',
-            effect: 'Offers challenge',
-            visual: 'spirit',
-            execute: () => {
-                this.showSpiritChallenge();
-            }
-        },
-        
-        shadowFlipper: {
-            name: 'Shadow Rival',
-            type: 'encounter',
-            minStreak: 15,
-            description: 'Rival appears!',
-            effect: 'Competes for multiplier',
-            visual: 'shadow',
-            execute: () => {
-                this.startShadowDuel();
-            }
-        },
-        
-        bankRobber: {
-            name: 'Bank Robber!',
-            type: 'encounter',
-            minStreak: 10,
-            description: 'Thief alert!',
-            effect: 'Defend your bank',
-            visual: 'robber',
-            execute: () => {
-                this.defendBank();
-            }
-        },
-        
-        // COSMETIC EVENTS
-        mimicCoin: {
-            name: 'Mimic',
-            type: 'cosmetic',
-            minStreak: 0,
-            description: 'Coin comes alive!',
-            effect: 'Just for fun',
-            visual: 'mimic',
-            execute: () => {
-                this.showEventResult('THE COIN HAS EYES! 👀');
-                this.animateMimic();
-            }
-        },
-        
-        coinJoke: {
-            name: 'Comedian Coin',
-            type: 'cosmetic',
-            minStreak: 0,
-            description: 'Coin tells joke',
-            effect: 'Random text',
-            visual: 'joke',
-            execute: () => {
-                const jokes = [
-                    'Stop flipping me, I\'m dizzy!',
-                    'Heads I win, Tails you lose!',
-                    'I\'m two-faced and proud!',
-                    'Flip me gently, I bruise easily!',
-                    'Another day, another flip...'
-                ];
-                const joke = jokes[Math.floor(Math.random() * jokes.length)];
-                this.showEventResult(joke);
-            }
-        },
-        
-        timeWarp: {
-            name: 'Time Warp',
-            type: 'cosmetic',
-            minStreak: 7,
-            description: 'Everything slows!',
-            effect: 'Dramatic effect',
-            visual: 'timewarp',
-            execute: () => {
-                this.showEventResult('TIME WARP ACTIVATED!');
-                document.getElementById('gameContainer').classList.add('time-warp');
-                setTimeout(() => {
-                    document.getElementById('gameContainer').classList.remove('time-warp');
-                }, 3000);
-            }
-        },
-        
-        // LEGENDARY EVENTS
-        coinEclipse: {
-            name: 'Coin Eclipse',
-            type: 'legendary',
-            minStreak: 30,
-            description: 'Darkness falls!',
-            effect: 'Win for rare reward',
-            visual: 'eclipse',
-            rarity: 0.005, // 0.5% chance
-            execute: (won) => {
-                this.createEclipseEffect();
-                if (won) {
-                    this.showEventResult('ECLIPSE MASTERED! LEGENDARY REWARD!');
-                    this.grantLegendaryReward();
-                } else {
-                    this.showEventResult('ECLIPSE FAILED!');
-                }
-            }
-        },
-        
-        treasureFlip: {
-            name: 'Treasure Flip',
-            type: 'legendary',
-            minStreak: 50,
-            description: 'Golden coin!',
-            effect: 'Jackpot payout',
-            visual: 'treasure',
-            rarity: 0.003,
-            execute: (won) => {
-                if (won) {
-                    const jackpot = 500 + this.streak * 10;
-                    this.bank += jackpot;
+            },
+            fateOffer: {
+                name: 'Fate Offer',
+                tier: 'epic',
+                weight: 15,
+                description: 'Lose half gold, gain +2 workshop levels',
+                effect: 'Power trade',
+                execute: () => {
+                    const loss = Math.floor(this.bank / 2);
+                    this.bank -= loss;
                     localStorage.setItem('bank', this.bank);
-                    this.showEventResult(`TREASURE! +${jackpot} COINS!`);
-                    this.launchFireworks();
+                    // Add 2 random workshop upgrades
+                    this.showEventResult(`FATE OFFER! LOST ${loss} GOLD FOR POWER!`);
                 }
-            }
-        },
-        
-        devilsBargain: {
-            name: 'Devil\'s Bargain',
-            type: 'legendary',
-            minStreak: 25,
-            description: 'A dark offer...',
-            effect: 'High risk, high reward',
-            visual: 'devil',
-            rarity: 0.01,
-            execute: () => {
-                this.showDevilsBargain();
+            },
+            tradersVisit: {
+                name: 'Trader\'s Visit',
+                tier: 'epic',
+                weight: 15,
+                description: 'Shop refreshes with 50% discounts',
+                effect: 'Shop discount',
+                execute: () => {
+                    this.activeEffects.tradersVisit = true;
+                    this.generateShopStock(); // Refresh shop
+                    this.showEventResult('TRADER\'S VISIT! SHOP REFRESHED WITH 50% DISCOUNTS!');
+                }
+            },
+            staticSurge: {
+                name: 'Static Surge',
+                tier: 'epic',
+                weight: 15,
+                description: '-2 durability on random item',
+                effect: 'Heavy item damage',
+                execute: () => {
+                    const equippedItems = this.equippedItems.filter(item => item && item.durability > 0);
+                    if (equippedItems.length > 0) {
+                        const randomItem = equippedItems[Math.floor(Math.random() * equippedItems.length)];
+                        randomItem.durability = Math.max(0, randomItem.durability - 2);
+                        if (randomItem.durability <= 0) {
+                            this.showEventResult(`STATIC SURGE! ${randomItem.name.toUpperCase()} DESTROYED!`);
+                            const index = this.equippedItems.indexOf(randomItem);
+                            this.equippedItems[index] = null;
+                        } else {
+                            this.showEventResult(`STATIC SURGE! ${randomItem.name.toUpperCase()} -2 DURABILITY!`);
+                        }
+                        this.saveEquippedItems();
+                    } else {
+                        this.showEventResult('STATIC SURGE! NO ITEMS TO DAMAGE!');
+                    }
+                }
             }
         }
     };
 };
 
 CoinFlipGame.prototype.checkForRandomEvent = function() {
-    // Don't trigger during battles or other special modes
-    if (this.battleMode?.battleInProgress || this.eventActive) return false;
+    try {
+        // Don't trigger during battles or other special modes
+        if (this.battleMode?.battleInProgress || this.eventActive) return false;
     
-    // Calculate event chance - increased base chance from 10% to 15%
-    let chance = 0.15;
+    // New event trigger logic
+    let baseEventChance = 8; // 8% base chance per winning flip
+    let streakBonus = Math.floor(this.streak / 10) * 1; // +1% per 10 streaks
+    let maxEventChance = 15; // hard cap
     
-    // Increase chance based on streak
-    if (this.streak > 10) chance += 0.05;  // +5% at streak 10+
-    if (this.streak > 20) chance += 0.05;  // +5% at streak 20+
-    if (this.streak > 30) chance += 0.10;  // +10% at streak 30+
-    // Total max chance: 35% at streak 30+
+    // Apply Fortune Tuner item effect (+10% positive, -5% negative)
+    let positiveModifier = 0;
+    let negativeModifier = 0;
     
-    const roll = Math.random();
-    console.log(`Event check: rolled ${roll.toFixed(3)} vs chance ${chance.toFixed(3)}`);
-    
-    // Roll for event (FIXED: now correctly using < instead of >)
-    if (roll >= chance) return false;
-    
-    // Filter available events based on streak
-    const availableEvents = Object.entries(this.randomEvents).filter(([key, event]) => {
-        return this.streak >= event.minStreak;
+    this.equippedItems.forEach(item => {
+        if (item && item.effect === 'fortuneTuner' && item.durability > 0) {
+            positiveModifier += 10;
+            negativeModifier -= 5;
+        }
     });
     
-    if (availableEvents.length === 0) return false;
-    
-    // Consider rarity
-    let selectedEvent;
-    const rarityRoll = Math.random();
-    
-    // Check for rare events first
-    const rareEvents = availableEvents.filter(([k, e]) => e.rarity && rarityRoll < e.rarity);
-    if (rareEvents.length > 0) {
-        selectedEvent = rareEvents[Math.floor(Math.random() * rareEvents.length)];
-    } else {
-        selectedEvent = availableEvents[Math.floor(Math.random() * availableEvents.length)];
+    // Apply Fate Control workshop upgrade (+3% positive, -3% negative per level)
+    if (this.workshopUpgrades && this.workshopUpgrades.fateControl && this.workshopUpgrades.fateControl.level > 0) {
+        const fateLevel = this.workshopUpgrades.fateControl.level;
+        positiveModifier += fateLevel * 3;
+        negativeModifier -= fateLevel * 3;
     }
     
+    let finalEventChance = Math.min(baseEventChance + streakBonus, maxEventChance);
+    
+    const roll = Math.random() * 100;
+    
+    if (roll >= finalEventChance) return false;
+    
+    // Determine tier based on streak
+    let tierChances = { common: 65, rare: 25, epic: 10 };
+    
+    // Select tier
+    const tierRoll = Math.random() * 100;
+    let selectedTier;
+    
+    if (tierRoll < tierChances.common) {
+        selectedTier = 'common';
+    } else if (tierRoll < tierChances.common + tierChances.rare) {
+        selectedTier = 'rare';
+    } else {
+        selectedTier = 'epic';
+    }
+    
+    // Get events from selected tier
+    const tierEvents = this.randomEvents[selectedTier];
+    const eventKeys = Object.keys(tierEvents);
+    
+    if (eventKeys.length === 0) return false;
+    
+    // Calculate total weight for tier
+    let totalWeight = 0;
+    eventKeys.forEach(key => {
+        totalWeight += tierEvents[key].weight;
+    });
+    
+    // Select event based on weight
+    const weightRoll = Math.random() * totalWeight;
+    let currentWeight = 0;
+    let selectedEventKey = null;
+    
+    for (const key of eventKeys) {
+        currentWeight += tierEvents[key].weight;
+        if (weightRoll <= currentWeight) {
+            selectedEventKey = key;
+            break;
+        }
+    }
+    
+    if (!selectedEventKey) return false;
+    
+    // Determine if event is positive or negative and apply modifiers
+    const event = tierEvents[selectedEventKey];
+    const isPositive = this.isPositiveEvent(selectedEventKey);
+    
+    let finalChance = 100; // Base 100% chance to trigger
+    
+    if (isPositive) {
+        finalChance += positiveModifier;
+    } else {
+        finalChance += negativeModifier; // negativeModifier is negative, so this reduces chance
+    }
+    
+    // Final roll to see if event actually triggers
+    if (Math.random() * 100 > finalChance) return false;
+    
     // Trigger event
-    this.triggerRandomEvent(selectedEvent[0]);
+    this.triggerRandomEvent(selectedTier, selectedEventKey);
     return true;
+    
+    } catch (error) {
+        console.error('Error in checkForRandomEvent:', error);
+        return false;
+    }
 };
 
-CoinFlipGame.prototype.triggerRandomEvent = function(eventKey) {
-    const event = this.randomEvents[eventKey];
+CoinFlipGame.prototype.isPositiveEvent = function(eventKey) {
+    const positiveEvents = [
+        'luckySurge', 'coinWindfall', 'safeFlip', 'charmDrop', 
+        'goldenShine', 'echoToss', 'workshopFind', 'blessedCoin'
+    ];
+    return positiveEvents.includes(eventKey);
+};
+
+CoinFlipGame.prototype.triggerRandomEvent = function(tier, eventKey) {
+    const event = this.randomEvents[tier][eventKey];
     if (!event) return;
     
     this.eventActive = true;
@@ -449,27 +432,29 @@ CoinFlipGame.prototype.triggerRandomEvent = function(eventKey) {
     // Show event notification
     this.showEventNotification(event);
     
-    // Apply visual effect
-    this.applyEventVisual(event.visual);
-    
     // Store in history
     this.eventHistory.push({
         name: event.name,
+        tier: tier,
         streak: this.streak,
         timestamp: Date.now()
     });
     
-    // Some events execute immediately, others after flip
-    if (event.type === 'skill' || event.type === 'encounter') {
-        event.execute();
-    }
+    // Execute event immediately
+    event.execute();
+    
+    // Reset event state after execution
+    setTimeout(() => {
+        this.eventActive = false;
+        this.currentEvent = null;
+    }, 100);
 };
 
 CoinFlipGame.prototype.showEventNotification = function(event) {
     const notification = document.createElement('div');
-    notification.className = `event-notification event-${event.type}`;
+    notification.className = `event-notification event-${event.tier}`;
     notification.innerHTML = `
-        <div class="event-icon">${this.getEventIcon(event.type)}</div>
+        <div class="event-icon">${this.getEventIcon(event.tier)}</div>
         <div class="event-name">${event.name.toUpperCase()}!</div>
         <div class="event-desc">${event.description}</div>
     `;
@@ -486,17 +471,13 @@ CoinFlipGame.prototype.showEventNotification = function(event) {
     }, 3000);
 };
 
-CoinFlipGame.prototype.getEventIcon = function(type) {
+CoinFlipGame.prototype.getEventIcon = function(tier) {
     const icons = {
-        mutation: '🎲',
-        reward: '🎁',
-        risk: '⚠️',
-        skill: '🎯',
-        encounter: '👤',
-        cosmetic: '✨',
-        legendary: '👑'
+        common: '🎲',
+        rare: '⭐',
+        epic: '👑'
     };
-    return icons[type] || '❓';
+    return icons[tier] || '❓';
 };
 
 CoinFlipGame.prototype.applyEventVisual = function(visual) {

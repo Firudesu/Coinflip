@@ -115,12 +115,15 @@
                     <span class="currency-value" id="shopBank">0</span>
                 </div>
                 <div class="shop-status">
-                    <span id="shopStatus">STREAK 5+ TO UNLOCK</span>
+                    <span id="shopStatus">STREAK 3+ TO UNLOCK</span>
+                </div>
+                <div class="rotation-timer">
+                    <span id="rotationTimer">New items in: 5:00</span>
                 </div>
             </div>
             
             <div class="inventory-section">
-                <h3 class="inventory-title">YOUR ITEMS (MAX 2)</h3>
+                <h3 class="inventory-title">INVENTORY (MAX 3)</h3>
                 <div class="inventory-slots" id="inventorySlots">
                     <div class="inventory-slot empty" data-slot="0">
                         <span class="slot-empty">EMPTY</span>
@@ -128,6 +131,16 @@
                     <div class="inventory-slot empty" data-slot="1">
                         <span class="slot-empty">EMPTY</span>
                     </div>
+                    <div class="inventory-slot empty" data-slot="2">
+                        <span class="slot-empty">EMPTY</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="equipped-section">
+                <h3 class="equipped-title">EQUIPPED ITEMS</h3>
+                <div class="equipped-slots" id="equippedItemsContainer">
+                    <!-- Will be populated by JavaScript -->
                 </div>
             </div>
             
@@ -176,6 +189,7 @@
                     <button class="upgrade-tab active" data-category="basic">BASIC</button>
                     <button class="upgrade-tab" data-category="advanced">ADVANCED</button>
                     <button class="upgrade-tab" data-category="master">MASTER</button>
+                    <button class="upgrade-tab" data-category="legendary">LEGENDARY</button>
                 </div>
                 
                 <div class="upgrades-list" id="upgradesList">
