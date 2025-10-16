@@ -220,19 +220,9 @@ class CoinFlipGame {
             this.flipAnimation = null;
         }
         
-        // Check for random event before flip
-        try {
-            if (this.checkForRandomEvent) {
-                const eventTriggered = this.checkForRandomEvent();
-                if (eventTriggered) {
-                    console.log('Random event triggered!');
-                }
-            } else {
-                console.log('Random events not initialized yet');
-            }
-        } catch (error) {
-            console.error('Error in random event check:', error);
-        }
+        // DISABLED: Random events causing issues
+        // Will re-enable after fixing
+        console.log('Random events disabled for debugging');
         
         this.isFlipping = true;
         this.canvas.classList.add('flipping', 'disabled');
@@ -266,24 +256,8 @@ class CoinFlipGame {
             }
         });
         
-        // Apply active event effects
-        if (this.activeEffects) {
-            if (this.activeEffects.luckySurge && this.activeEffects.luckySurge > 0) {
-                winChance += 0.10; // +10% win chance
-            }
-            if (this.activeEffects.weightedCoin && this.activeEffects.weightedCoin > 0) {
-                winChance -= 0.10; // -10% win chance
-            }
-            if (this.activeEffects.blessedCoin) {
-                winChance = 1.0; // Guaranteed win
-            }
-            if (this.activeEffects.misflip) {
-                winChance = 0.0; // Guaranteed loss
-            }
-            if (this.activeEffects.reverseLuck) {
-                winChance = 1.0 - winChance; // Invert win chance
-            }
-        }
+        // DISABLED: Active event effects
+        console.log('Active event effects disabled for debugging');
         
         let result = Math.random() < winChance ? this.playerChoice : 
                      (this.playerChoice === 'heads' ? 'tails' : 'heads');
@@ -375,14 +349,8 @@ class CoinFlipGame {
         
         // Durability only processes on losses, not wins
         
-        // Process active event effects (but don't change the main flow for now)
-        try {
-            if (this.activeEffects) {
-                this.processActiveEventEffects(won);
-            }
-        } catch (error) {
-            console.error('Error processing event effects:', error);
-        }
+        // DISABLED: Event effects processing
+        console.log('Event effects processing disabled for debugging');
         
         if (won) {
             this.streak++;
