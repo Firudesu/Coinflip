@@ -42,11 +42,11 @@ body {
 }
 
 .village-image {
-    width: 105%;
+    width: 110%;
     height: auto;
-    max-height: 160px;
+    max-height: 168px;
     display: block;
-    margin: -10px 0 0 -2.5%;
+    margin: -10px 0 0 -5%;
     image-rendering: pixelated;
     image-rendering: -moz-crisp-edges;
     image-rendering: crisp-edges;
@@ -59,7 +59,7 @@ body {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    max-width: 64%;
+    max-width: 49%;
     height: auto;
     margin: 0;
     display: block;
@@ -1901,13 +1901,13 @@ body {
 
 @media (max-width: 600px) {
     .village-image {
-        width: 108%;
-        margin: -8px 0 0 -4%;
-        max-height: 110px;
+        width: 113%;
+        margin: -8px 0 0 -6.5%;
+        max-height: 116px;
     }
     
     .game-title {
-        max-width: 58%;
+        max-width: 43%;
     }
     
     .stats-container {
