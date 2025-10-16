@@ -38,13 +38,27 @@ body {
 .game-title {
     max-width: 75%;
     height: auto;
-    margin-bottom: 30px;
+    margin-bottom: 20px;
     display: block;
     margin-left: auto;
     margin-right: auto;
     image-rendering: pixelated;
     image-rendering: -moz-crisp-edges;
     image-rendering: crisp-edges;
+}
+
+.village-image {
+    max-width: 100%;
+    height: auto;
+    max-height: 120px;
+    margin-bottom: 20px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    object-fit: contain;
 }
 
 @keyframes pulse {
@@ -1880,7 +1894,13 @@ body {
 @media (max-width: 600px) {
     .game-title {
         max-width: 68%;
-        margin-bottom: 20px;
+        margin-bottom: 15px;
+    }
+    
+    .village-image {
+        max-width: 90%;
+        max-height: 80px;
+        margin-bottom: 15px;
     }
     
     .stats-container {
