@@ -108,31 +108,33 @@
     <!-- Item Shop Modal -->
     <div class="modal" id="shopModal">
         <div class="shop-content">
-            <h2 class="shop-title">TACTICAL ITEM SHOP</h2>
+            <h2 class="shop-title">🛒 ITEM SHOP</h2>
             <div class="shop-header">
                 <div class="shop-currency">
                     <span class="currency-label">BANK:</span>
                     <span class="currency-value" id="shopBank">0</span>
                 </div>
+                <div class="shop-timer">
+                    <span id="shopRotationTimer">New items in: 5:00</span>
+                </div>
                 <div class="shop-status">
-                    <span id="shopStatus">STREAK 5+ TO UNLOCK</span>
+                    <span id="shopStatus">SHOP OPEN - ITEMS ROTATE EVERY 5 MINUTES</span>
                 </div>
             </div>
             
-            <div class="inventory-section">
-                <h3 class="inventory-title">YOUR ITEMS (MAX 2)</h3>
+            <div class="equipment-section">
+                <h3 class="equipment-title">EQUIPPED ITEMS</h3>
                 <div class="inventory-slots" id="inventorySlots">
-                    <div class="inventory-slot empty" data-slot="0">
-                        <span class="slot-empty">EMPTY</span>
-                    </div>
-                    <div class="inventory-slot empty" data-slot="1">
-                        <span class="slot-empty">EMPTY</span>
-                    </div>
+                    <!-- Equipment slots will be dynamically generated -->
                 </div>
             </div>
             
             <div class="shop-items" id="shopItems">
                 <!-- Items will be dynamically generated -->
+            </div>
+            
+            <div class="repair-tip">
+                <span>💡 TIP: Items lose durability during flips. Repair broken items here!</span>
             </div>
             
             <button class="pixel-btn close-btn" id="closeShop">CLOSE</button>
@@ -159,41 +161,25 @@
     <!-- Workshop Modal -->
     <div class="modal" id="workshopModal">
         <div class="workshop-content">
-            <h2 class="workshop-title">COIN WORKSHOP</h2>
+            <h2 class="workshop-title">🧰 WORKSHOP</h2>
             <div class="workshop-header">
                 <div class="workshop-currency">
-                    <span class="currency-label">BANK:</span>
-                    <span class="currency-value" id="workshopBank">0</span>
+                    <span class="currency-label">TOKENS:</span>
+                    <span class="currency-value" id="workshopTokens">0</span>
                 </div>
-                <div class="workshop-tier">
-                    <span class="tier-label">TIER:</span>
-                    <span class="tier-value" id="workshopTier">1</span>
+                <div class="workshop-info">
+                    <span>Earn tokens by reaching streak milestones!</span>
                 </div>
             </div>
             
             <div class="upgrade-categories">
-                <div class="upgrade-tabs">
-                    <button class="upgrade-tab active" data-category="basic">BASIC</button>
-                    <button class="upgrade-tab" data-category="advanced">ADVANCED</button>
-                    <button class="upgrade-tab" data-category="master">MASTER</button>
-                </div>
-                
                 <div class="upgrades-list" id="upgradesList">
                     <!-- Upgrades will be dynamically generated -->
                 </div>
             </div>
             
-            <div class="upgrade-info">
-                <div class="selected-upgrade" id="selectedUpgrade">
-                    <h3>SELECT AN UPGRADE</h3>
-                    <p>Choose an upgrade to see details</p>
-                </div>
-                <button class="pixel-btn purchase-upgrade-btn" id="purchaseUpgradeBtn" disabled>PURCHASE</button>
-                <button class="pixel-btn refund-btn" id="refundBtn">REFUND MODE</button>
-            </div>
-            
             <div class="workshop-stats">
-                <h3>CURRENT BONUSES</h3>
+                <h3>ACTIVE UPGRADES</h3>
                 <div class="bonus-list" id="bonusList"></div>
             </div>
             
@@ -316,8 +302,8 @@
     </audio>
 
     <script src="game.js"></script>
+    <script src="workshop-system.js"></script>
     <script src="battle-system.js"></script>
-    <script src="upgrade-system.js"></script>
     <script src="random-events.js"></script>
 </body>
 </html>

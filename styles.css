@@ -1943,3 +1943,310 @@ body {
         font-size: 16px;
     }
 }
+/* New Shop System Styles */
+.shop-timer {
+    color: #ffeb3b;
+    font-size: 10px;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 2px solid #333;
+    margin: 10px 0;
+}
+
+.equipment-section {
+    margin: 20px 0;
+}
+
+.equipment-title {
+    font-size: 10px;
+    color: #4ecdc4;
+    margin-bottom: 15px;
+}
+
+.equip-slot {
+    background: rgba(0, 0, 0, 0.7);
+    border: 2px solid #444;
+    padding: 15px;
+    margin: 10px;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+    display: inline-block;
+    width: calc(33% - 20px);
+}
+
+.equip-slot:hover {
+    border-color: #4ecdc4;
+    transform: translateY(-2px);
+}
+
+.equip-slot.locked {
+    opacity: 0.5;
+    cursor: not-allowed;
+    border-color: #ff6b6b;
+}
+
+.equip-slot.equipped {
+    border-color: #ffd700;
+    background: rgba(255, 215, 0, 0.1);
+}
+
+.equip-slot.broken {
+    border-color: #ff0000;
+    background: rgba(255, 0, 0, 0.1);
+}
+
+.equipped-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+}
+
+.durability-bar {
+    width: 100%;
+    height: 8px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid #444;
+    margin-top: 5px;
+}
+
+.durability-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #ff0000, #ffff00, #00ff00);
+    transition: width 0.3s;
+}
+
+.durability-text {
+    font-size: 8px;
+    color: #888;
+}
+
+.shop-item.owned {
+    opacity: 0.7;
+    border-color: #4ecdc4;
+}
+
+.item-durability {
+    font-size: 8px;
+    color: #ffeb3b;
+    margin-top: 5px;
+}
+
+.repair-tip {
+    background: rgba(78, 205, 196, 0.1);
+    border: 1px solid #4ecdc4;
+    padding: 10px;
+    margin-top: 20px;
+    font-size: 8px;
+    color: #4ecdc4;
+}
+
+/* Equipment Menu Modal */
+.equip-menu-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+}
+
+.equip-menu-content {
+    background: #2a2a2a;
+    border: 4px solid #000;
+    padding: 20px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.equip-items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 20px 0;
+}
+
+.equip-item {
+    background: rgba(0, 0, 0, 0.5);
+    border: 2px solid #444;
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.equip-item:hover {
+    border-color: #4ecdc4;
+    transform: translateX(5px);
+}
+
+.equip-item.already-equipped {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.equip-item.cannot-equip {
+    opacity: 0.3;
+    cursor: not-allowed;
+    border-color: #ff6b6b;
+}
+
+.equipped-tag,
+.limit-tag {
+    margin-left: auto;
+    font-size: 8px;
+    padding: 2px 5px;
+    background: rgba(255, 215, 0, 0.2);
+    color: #ffd700;
+}
+
+.limit-tag {
+    background: rgba(255, 0, 0, 0.2);
+    color: #ff6b6b;
+}
+
+.unequip-btn {
+    background: #ff6b6b;
+}
+
+.close-equip-btn {
+    margin-top: 10px;
+}
+
+/* Rarity colors */
+.rarity-common {
+    border-color: #888 !important;
+}
+
+.rarity-rare {
+    border-color: #4169E1 !important;
+}
+
+.rarity-epic {
+    border-color: #9932CC !important;
+}
+
+.rarity-legendary {
+    border-color: #FFD700 !important;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+/* Workshop Styles */
+.workshop-content {
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.workshop-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.5);
+    border: 2px solid #333;
+}
+
+.workshop-info {
+    font-size: 8px;
+    color: #888;
+}
+
+.upgrades-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin: 20px 0;
+}
+
+.workshop-upgrade {
+    background: rgba(0, 0, 0, 0.5);
+    border: 2px solid #444;
+    padding: 15px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.workshop-upgrade:hover {
+    border-color: #4ecdc4;
+    transform: translateY(-2px);
+}
+
+.workshop-upgrade.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.upgrade-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.upgrade-icon {
+    font-size: 20px;
+}
+
+.upgrade-name {
+    flex: 1;
+    font-size: 10px;
+}
+
+.upgrade-tier {
+    font-size: 8px;
+    color: #ffeb3b;
+}
+
+.upgrade-description {
+    font-size: 8px;
+    color: #888;
+    margin-bottom: 5px;
+}
+
+.upgrade-level,
+.upgrade-effect {
+    font-size: 8px;
+    color: #4ecdc4;
+    margin: 5px 0;
+}
+
+.upgrade-cost {
+    font-size: 10px;
+    color: #ffd700;
+    margin-top: 10px;
+    text-align: right;
+}
+
+.bonus-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.active-upgrade {
+    background: rgba(78, 205, 196, 0.1);
+    border: 1px solid #4ecdc4;
+    padding: 5px 10px;
+    font-size: 8px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.no-upgrades {
+    font-size: 8px;
+    color: #888;
+    text-align: center;
+    padding: 20px;
+}
