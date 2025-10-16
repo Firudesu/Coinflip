@@ -35,30 +35,38 @@ body {
     position: relative;
 }
 
-.game-title {
-    max-width: 75%;
-    height: auto;
-    margin-bottom: 20px;
-    display: block;
-    margin-left: auto;
-    margin-right: auto;
-    image-rendering: pixelated;
-    image-rendering: -moz-crisp-edges;
-    image-rendering: crisp-edges;
+.title-section {
+    position: relative;
+    width: 100%;
+    margin-bottom: 0;
 }
 
 .village-image {
-    max-width: 100%;
+    width: 100%;
     height: auto;
-    max-height: 120px;
-    margin-bottom: 20px;
+    max-height: 150px;
     display: block;
-    margin-left: auto;
-    margin-right: auto;
+    margin: 0;
     image-rendering: pixelated;
     image-rendering: -moz-crisp-edges;
     image-rendering: crisp-edges;
-    object-fit: contain;
+    object-fit: cover;
+    object-position: center top;
+}
+
+.game-title {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    max-width: 75%;
+    height: auto;
+    margin: 0;
+    display: block;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    z-index: 2;
 }
 
 @keyframes pulse {
@@ -1892,15 +1900,12 @@ body {
 }
 
 @media (max-width: 600px) {
-    .game-title {
-        max-width: 68%;
-        margin-bottom: 15px;
+    .village-image {
+        max-height: 100px;
     }
     
-    .village-image {
-        max-width: 90%;
-        max-height: 80px;
-        margin-bottom: 15px;
+    .game-title {
+        max-width: 68%;
     }
     
     .stats-container {
