@@ -8,7 +8,7 @@
 
 body {
     font-family: 'Press Start 2P', monospace;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: url('tavern image.png') center center / cover no-repeat fixed;
     min-height: 100vh;
     display: flex;
     justify-content: center;
@@ -19,14 +19,15 @@ body {
 }
 
 .game-container {
-    background: #2a2a2a;
+    background: rgba(42, 42, 42, 0.95);
+    backdrop-filter: blur(5px);
     border: 4px solid #000;
     border-radius: 0;
     padding: 30px;
     box-shadow: 
         0 0 0 4px #4a4a4a,
         0 0 0 8px #000,
-        0 20px 40px rgba(0, 0, 0, 0.5);
+        0 20px 40px rgba(0, 0, 0, 0.7);
     max-width: 600px;
     width: 90%;
     text-align: center;
