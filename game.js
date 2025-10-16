@@ -338,8 +338,7 @@ class CoinFlipGame {
         this.lastTwoFlips = this.flipHistory.slice(-2);
         this.lastThreeFlips = this.flipHistory.slice(-3);
         
-        // Process durability loss for equipped items (with workshop protection)
-        this.processItemDurability();
+        // Durability only processes on losses, not wins
         
         if (won) {
             this.streak++;
@@ -455,10 +454,7 @@ class CoinFlipGame {
             // Check achievements
             this.checkAchievements();
             
-            // Check token milestones and workshop unlock
-            if (this.checkTokenMilestones) {
-                this.checkTokenMilestones();
-            }
+            // Check workshop unlock
             if (this.checkWorkshopUnlock) {
                 this.checkWorkshopUnlock();
             }
@@ -466,9 +462,7 @@ class CoinFlipGame {
                 this.updateWorkshopTier();
             }
             
-            // Track total wins for Coin Soul upgrade
-            this.totalWins++;
-            localStorage.setItem('totalWins', this.totalWins);
+            // Track wins
             
             // Update coin effects based on streak
             this.updateCoinEffects();
@@ -512,6 +506,9 @@ class CoinFlipGame {
                 this.updateCoinEffects();
                 return; // Don't continue with normal loss
             }
+            
+            // Process item durability loss on losing flip
+            this.processItemDurabilityLoss();
             
             // Apply second chance
             if (this.activeEffects.secondChance) {
@@ -1507,134 +1504,138 @@ Play at: ${window.location.href}`;
         animate();
     }
     
-    // Shop System Methods - New Durability-Based Items
+    // Shop System Methods - New Equippable Items
     defineShopItems() {
         return [
             {
-                id: 'coin_saver',
-                name: 'Coin Saver',
+                id: 'lucky_charm',
+                name: 'Lucky Charm',
+                icon: '🍀',
+                description: '+5% chance to guess correctly',
+                rarity: 'common',
+                price: 150,
+                durability: 10,
+                maxDurability: 10,
+                breakRiskModifier: 0,
+                effect: 'winChance',
+                value: 0.05
+            },
+            {
+                id: 'coin_doubler',
+                name: 'Coin Doubler',
+                icon: '💰',
+                description: '+50% gold earned per correct guess',
+                rarity: 'common',
+                price: 200,
+                durability: 10,
+                maxDurability: 10,
+                breakRiskModifier: 0,
+                effect: 'goldBonus',
+                value: 0.50
+            },
+            {
+                id: 'streak_saver',
+                name: 'Streak Saver',
                 icon: '🛡️',
-                description: '25% chance to not lose streak on fail',
+                description: '20% chance to not lose streak on a wrong guess',
                 rarity: 'rare',
-                price: 1200,
-                durability: 100,
-                maxDurability: 100,
-                durabilityLossChance: 0.02,
+                price: 300,
+                durability: 8,
+                maxDurability: 8,
+                breakRiskModifier: 0,
                 effect: 'streakSave',
-                value: 0.25,
-                repairCost: () => Math.floor(1200 * 0.35)
+                value: 0.20
             },
             {
-                id: 'mirror_coin',
-                name: 'Mirror Coin',
+                id: 'mirror_flip',
+                name: 'Mirror Flip',
                 icon: '🪞',
-                description: '10% chance to copy previous flip result',
+                description: 'Once per streak, reroll a losing flip',
                 rarity: 'rare',
-                price: 1500,
-                durability: 100,
-                maxDurability: 100,
-                durabilityLossChance: 0.02,
+                price: 250,
+                durability: 5,
+                maxDurability: 5,
+                breakRiskModifier: 0,
                 effect: 'mirrorFlip',
-                value: 0.10,
-                repairCost: () => Math.floor(1500 * 0.35)
+                value: 1
             },
             {
-                id: 'double_down',
-                name: 'Double Down',
-                icon: '💎',
-                description: 'After 5 correct flips, next flip reward x2',
-                rarity: 'epic',
-                price: 2500,
-                durability: 100,
-                maxDurability: 100,
-                durabilityLossChance: 0.03,
-                effect: 'doubleReward',
-                value: 2,
-                repairCost: () => Math.floor(2500 * 0.45)
-            },
-            {
-                id: 'hot_hand',
-                name: 'Hot Hand',
-                icon: '🔥',
-                description: '+5% win chance if last 3 flips were wins',
-                rarity: 'rare',
-                price: 1200,
-                durability: 100,
-                maxDurability: 100,
-                durabilityLossChance: 0.02,
-                effect: 'hotHand',
-                value: 0.05,
-                repairCost: () => Math.floor(1200 * 0.35)
-            },
-            {
-                id: 'cold_blooded',
-                name: 'Cold Blooded',
-                icon: '❄️',
-                description: '+5% win chance if last 2 flips were losses',
-                rarity: 'rare',
-                price: 1200,
-                durability: 100,
-                maxDurability: 100,
-                durabilityLossChance: 0.02,
-                effect: 'coldBlooded',
-                value: 0.05,
-                repairCost: () => Math.floor(1200 * 0.35)
-            },
-            {
-                id: 'risk_taker',
-                name: 'Risk Taker',
+                id: 'greedy_toss',
+                name: 'Greedy Toss',
                 icon: '🎲',
-                description: 'Each consecutive win gives +0.15 multiplier, lose resets multiplier',
+                description: '+0.2 streak multiplier growth per flip but +10% break chance',
                 rarity: 'epic',
-                price: 3000,
-                durability: 100,
-                maxDurability: 100,
-                durabilityLossChance: 0.03,
-                effect: 'riskTaker',
-                value: 0.15,
-                repairCost: () => Math.floor(3000 * 0.45)
+                price: 180,
+                durability: 8,
+                maxDurability: 8,
+                breakRiskModifier: 10,
+                effect: 'multiplierGrowth',
+                value: 0.2
             },
             {
-                id: 'coin_splitter',
-                name: 'Coin Splitter',
-                icon: '✂️',
-                description: '5% chance for coin to double flip (two chances per guess)',
+                id: 'twin_fate',
+                name: 'Twin Fate',
+                icon: '👯',
+                description: 'Every 10th flip earns double gold',
+                rarity: 'rare',
+                price: 220,
+                durability: 10,
+                maxDurability: 10,
+                breakRiskModifier: 0,
+                effect: 'tenthFlipBonus',
+                value: 2
+            },
+            {
+                id: 'jackpot_edge',
+                name: 'Jackpot Edge',
+                icon: '🎯',
+                description: '10% chance per flip to get +5 bonus gold',
+                rarity: 'common',
+                price: 160,
+                durability: 10,
+                maxDurability: 10,
+                breakRiskModifier: 0,
+                effect: 'bonusGold',
+                value: 5
+            },
+            {
+                id: 'coin_shield',
+                name: 'Coin Shield',
+                icon: '🛡️',
+                description: 'Prevents one equipped item from breaking this streak',
+                rarity: 'rare',
+                price: 120,
+                durability: 1,
+                maxDurability: 1,
+                breakRiskModifier: 0,
+                effect: 'itemProtection',
+                value: 1
+            },
+            {
+                id: 'paradox_coin',
+                name: 'Paradox Coin',
+                icon: '🌀',
+                description: '1% chance to auto-win, 5% chance to instantly lose streak',
+                rarity: 'legendary',
+                price: 250,
+                durability: 8,
+                maxDurability: 8,
+                breakRiskModifier: 0,
+                effect: 'paradox',
+                value: { autoWin: 0.01, autoLose: 0.05 }
+            },
+            {
+                id: 'rich_mans_toss',
+                name: 'Rich Man\'s Toss',
+                icon: '💎',
+                description: '+25% gold per win, -10% win chance',
                 rarity: 'epic',
-                price: 3500,
-                durability: 100,
-                maxDurability: 100,
-                durabilityLossChance: 0.03,
-                effect: 'doubleFlip',
-                value: 0.05,
-                repairCost: () => Math.floor(3500 * 0.45)
-            },
-            {
-                id: 'multiplier_bond',
-                name: 'Multiplier Bond',
-                icon: '🔗',
-                description: 'Every 10 streaks adds +1 permanent multiplier until game over',
-                rarity: 'legendary',
-                price: 6000,
-                durability: 100,
-                maxDurability: 100,
-                durabilityLossChance: 0.04,
-                effect: 'multiplierBond',
-                value: 1,
-                repairCost: () => Math.floor(6000 * 0.50)
-            },
-            {
-                id: 'jackpot_fever',
-                name: 'Jackpot Fever',
-                icon: '🎰',
-                description: '0.5% chance per flip to win 50× coins',
-                rarity: 'legendary',
-                price: 10000,
-                durability: 100,
-                maxDurability: 100,
-                durabilityLossChance: 0.05,
-                effect: 'jackpot',
-                value: 50,
-                repairCost: () => Math.floor(10000 * 0.50)
+                price: 180,
+                durability: 10,
+                maxDurability: 10,
+                breakRiskModifier: 0,
+                effect: 'richToss',
+                value: { goldBonus: 0.25, winPenalty: -0.10 }
             }
         ];
     }
@@ -1751,8 +1752,7 @@ Play at: ${window.location.href}`;
                 </div>
                 <div class="item-title">${item.name}</div>
                 <div class="item-description">${item.description}</div>
-                <div class="item-durability">Durability: ${item.durability}%</div>
-                <div class="item-repair-cost">Repair Cost: ${item.repairCost()} 🪙</div>
+                <div class="item-durability" title="Durability only decreases when you lose a flip. Each loss has a 10% base chance to reduce durability by 1. Items are destroyed when durability reaches 0.">Durability: ${item.durability}/${item.maxDurability}</div>
             `;
             
             itemDiv.addEventListener('click', () => {
@@ -1806,14 +1806,13 @@ Play at: ${window.location.href}`;
             
             if (item) {
                 slot.classList.remove('empty');
-                const durabilityColor = item.durability > 50 ? '#4ecdc4' : item.durability > 25 ? '#ffeb3b' : '#ff6b6b';
+                const durabilityColor = item.durability > 5 ? '#4ecdc4' : item.durability > 2 ? '#ffeb3b' : '#ff6b6b';
                 slot.innerHTML = `
                     <div class="item-in-slot">
                         <span class="item-icon">${item.icon}</span>
                         <span class="item-name">${item.name}</span>
-                        <span class="item-durability" style="color: ${durabilityColor}">${item.durability}%</span>
+                        <span class="item-durability" style="color: ${durabilityColor}" title="Durability only decreases when you lose a flip. Each loss has a 10% base chance to reduce durability by 1. Items are destroyed when durability reaches 0.">${item.durability}/${item.maxDurability}</span>
                         <button class="equip-btn" onclick="game.equipItem(${index})">EQUIP</button>
-                        <button class="repair-btn" onclick="game.repairItem(${index})">REPAIR (${item.repairCost()})</button>
                     </div>
                 `;
             } else {
@@ -1841,12 +1840,12 @@ Play at: ${window.location.href}`;
                 const unlockStreak = index === 1 ? 10 : 25;
                 slotDiv.innerHTML = `<span class="slot-locked">UNLOCKS AT STREAK ${unlockStreak}</span>`;
             } else if (item) {
-                const durabilityColor = item.durability > 50 ? '#4ecdc4' : item.durability > 25 ? '#ffeb3b' : '#ff6b6b';
+                const durabilityColor = item.durability > 5 ? '#4ecdc4' : item.durability > 2 ? '#ffeb3b' : '#ff6b6b';
                 slotDiv.innerHTML = `
                     <div class="equipped-item">
                         <span class="item-icon">${item.icon}</span>
                         <span class="item-name">${item.name}</span>
-                        <span class="item-durability" style="color: ${durabilityColor}">${item.durability}%</span>
+                        <span class="item-durability" style="color: ${durabilityColor}" title="Durability only decreases when you lose a flip. Each loss has a 10% base chance to reduce durability by 1. Items are destroyed when durability reaches 0.">${item.durability}/${item.maxDurability}</span>
                         <button class="unequip-btn" onclick="game.unequipItem(${index})">UNEQUIP</button>
                     </div>
                 `;
@@ -1922,31 +1921,7 @@ Play at: ${window.location.href}`;
         this.updateShopDisplay();
     }
     
-    repairItem(inventoryIndex) {
-        const item = this.inventory[inventoryIndex];
-        if (!item) return;
-        
-        const repairCost = item.repairCost();
-        if (this.bank < repairCost) {
-            this.showMessage('NOT ENOUGH COINS TO REPAIR!');
-            return;
-        }
-        
-        if (item.durability >= item.maxDurability) {
-            this.showMessage('ITEM IS ALREADY AT FULL DURABILITY!');
-            return;
-        }
-        
-        // Repair item
-        this.bank -= repairCost;
-        item.durability = item.maxDurability;
-        
-        localStorage.setItem('bank', this.bank);
-        this.saveInventory();
-        this.showMessage(`REPAIRED ${item.name.toUpperCase()}!`);
-        this.updateDisplay();
-        this.updateShopDisplay();
-    }
+    // Repair method removed - items are destroyed when durability reaches 0
     
     saveInventory() {
         localStorage.setItem('inventory', JSON.stringify(this.inventory));
@@ -1963,46 +1938,32 @@ Play at: ${window.location.href}`;
         }
     }
     
-    processItemDurability() {
-        // Process durability loss for equipped items during streaks
-        this.equippedItems.forEach(item => {
+    processItemDurabilityLoss() {
+        // New durability system: only triggered on losing flips
+        let baseBreakChance = 10; // 10% base break chance
+        
+        // Apply Streak Protector workshop upgrade
+        if (this.workshopUpgrades && this.workshopUpgrades.streakProtector.level > 0) {
+            baseBreakChance -= (this.workshopUpgrades.streakProtector.level * 2);
+        }
+        
+        // Check each equipped item for potential breaking
+        this.equippedItems.forEach((item, index) => {
             if (!item || item.durability <= 0) return;
             
-            // Apply workshop upgrades for durability protection
-            let durabilityLossChance = item.durabilityLossChance;
+            // Calculate final break chance for this item
+            let finalBreakChance = Math.max(0, baseBreakChance + (item.breakRiskModifier || 0));
             
-            // Fortune Memory: 2% chance on flip to prevent item durability loss
-            if (this.workshopUpgrades && this.workshopUpgrades.fortuneMemory.level > 0) {
-                const preventChance = this.workshopUpgrades.fortuneMemory.level * 0.02;
-                if (Math.random() < preventChance) {
-                    return; // Skip durability loss for this item
-                }
-            }
-            
-            // Reinforced Alloy: Reduces item durability loss chance by 15% per level
-            if (this.workshopUpgrades && this.workshopUpgrades.reinforcedAlloy.level > 0) {
-                const reduction = this.workshopUpgrades.reinforcedAlloy.level * 0.15;
-                durabilityLossChance *= (1 - reduction);
-            }
-            
-            // Check if durability should be lost this flip
-            if (Math.random() < durabilityLossChance) {
-                const loss = Math.floor(Math.random() * 3) + 1; // 1-3% loss
-                item.durability = Math.max(0, item.durability - loss);
+            // Roll for break chance
+            if (Math.random() * 100 < finalBreakChance) {
+                item.durability -= 1;
                 
                 if (item.durability <= 0) {
-                    this.showMessage(`${item.name.toUpperCase()} BROKE! REPAIR IT!`);
-                } else if (item.durability <= 25) {
-                    this.showMessage(`${item.name.toUpperCase()} IS WEARING OUT!`);
-                }
-            }
-            
-            // Restoration Circuit: 10% chance to repair 1 durability point after each win streak
-            if (this.workshopUpgrades && this.workshopUpgrades.restorationCircuit.level > 0 && this.streak > 0) {
-                const repairChance = this.workshopUpgrades.restorationCircuit.level * 0.10;
-                if (Math.random() < repairChance && item.durability < item.maxDurability) {
-                    item.durability = Math.min(item.maxDurability, item.durability + 1);
-                    this.showMessage(`${item.name.toUpperCase()} SELF-REPAIRED!`);
+                    // Item is destroyed
+                    this.showMessage(`${item.name.toUpperCase()} BROKE AND WAS DESTROYED!`);
+                    this.equippedItems[index] = null;
+                } else {
+                    this.showMessage(`${item.name.toUpperCase()} LOST 1 DURABILITY! (${item.durability}/${item.maxDurability})`);
                 }
             }
         });

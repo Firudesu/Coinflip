@@ -2,22 +2,18 @@
 // Permanent upgrades that persist across sessions
 
 CoinFlipGame.prototype.initUpgradeSystem = function() {
-    // Token-based workshop system
-    this.tokens = 0;
-    this.totalWins = 0;
+    // Gold-based workshop system
     this.workshopUpgrades = {
-        weightedCoin: { level: 0, max: 10, cost: 1, tier: 1 },
-        secondChance: { level: 0, max: 3, cost: 3, tier: 2 },
-        twinToss: { level: 0, max: 5, cost: 4, tier: 3 },
-        momentumEngine: { level: 0, max: 10, cost: 2, tier: 4 },
-        safetyNet: { level: 0, max: 2, cost: 5, tier: 3 },
-        goldenEdge: { level: 0, max: 5, cost: 4, tier: 5 },
-        echoFlip: { level: 0, max: 3, cost: 5, tier: 5 },
-        bankShield: { level: 0, max: 3, cost: 6, tier: 6 },
-        coinSoul: { level: 0, max: 1, cost: 8, tier: 7 },
-        reinforcedAlloy: { level: 0, max: 5, cost: 3, tier: 4 },
-        restorationCircuit: { level: 0, max: 3, cost: 5, tier: 5 },
-        fortuneMemory: { level: 0, max: 3, cost: 6, tier: 6 }
+        coinBias: { level: 0, max: 10, baseCost: 200, tier: 1 },
+        streakProtector: { level: 0, max: 5, baseCost: 300, tier: 1 },
+        flipForgiveness: { level: 0, max: 5, baseCost: 400, tier: 2 },
+        doubleFace: { level: 0, max: 10, baseCost: 250, tier: 2 },
+        streakBooster: { level: 0, max: 5, baseCost: 350, tier: 3 },
+        coinEcho: { level: 0, max: 10, baseCost: 400, tier: 3 },
+        metalCoin: { level: 0, max: 5, baseCost: 300, tier: 2 },
+        goldenEdge: { level: 0, max: 10, baseCost: 250, tier: 1 },
+        luckyMemory: { level: 0, max: 10, baseCost: 200, tier: 2 },
+        safetyToss: { level: 0, max: 1, baseCost: 600, tier: 4 }
     };
     
     this.workshopUnlocked = false;
@@ -36,112 +32,94 @@ CoinFlipGame.prototype.initUpgradeSystem = function() {
 
 CoinFlipGame.prototype.defineUpgrades = function() {
     return {
-        weightedCoin: {
-            name: 'Weighted Coin',
+        coinBias: {
+            name: 'Coin Bias',
             icon: '⚖️',
-            description: '+1% base win chance per upgrade',
+            description: '+1% win chance per level',
             effect: (level) => `+${level}% win chance`,
             tier: 1,
             getValue: (level) => level * 0.01,
             category: 'basic'
         },
-        secondChance: {
-            name: 'Second Chance',
-            icon: '🔄',
-            description: '5% chance to reflip after a loss',
-            effect: (level) => `${level * 5}% reflip chance`,
+        streakProtector: {
+            name: 'Streak Protector',
+            icon: '🛡️',
+            description: '-2% item break chance per level',
+            effect: (level) => `${level * 2}% break protection`,
+            tier: 1,
+            getValue: (level) => level * 0.02,
+            category: 'basic'
+        },
+        flipForgiveness: {
+            name: 'Flip Forgiveness',
+            icon: '🙏',
+            description: '5% chance to ignore a losing flip per level',
+            effect: (level) => `${level * 5}% ignore loss`,
             tier: 2,
             getValue: (level) => level * 0.05,
             category: 'advanced'
         },
-        twinToss: {
-            name: 'Twin Toss',
+        doubleFace: {
+            name: 'Double Face',
             icon: '👯',
-            description: '2% chance to land double result',
-            effect: (level) => `${level * 2}% double result`,
-            tier: 3,
-            getValue: (level) => level * 0.02,
+            description: '+1% chance per level for coin to roll "double same" (HH or TT)',
+            effect: (level) => `${level}% double same`,
+            tier: 2,
+            getValue: (level) => level * 0.01,
             category: 'advanced'
         },
-        momentumEngine: {
-            name: 'Momentum Engine',
-            icon: '⚡',
-            description: '+0.02 base multiplier growth per win',
-            effect: (level) => `+${(level * 0.02).toFixed(2)} multiplier growth`,
-            tier: 4,
-            getValue: (level) => level * 0.02,
+        streakBooster: {
+            name: 'Streak Booster',
+            icon: '📈',
+            description: '+0.05 streak multiplier per level',
+            effect: (level) => `+${(level * 0.05).toFixed(2)} multiplier`,
+            tier: 3,
+            getValue: (level) => level * 0.05,
             category: 'master'
         },
-        safetyNet: {
-            name: 'Safety Net',
-            icon: '🛡️',
-            description: 'Lose streak but keep half multiplier',
-            effect: (level) => level > 0 ? 'Keep 50% multiplier on loss' : 'Inactive',
+        coinEcho: {
+            name: 'Coin Echo',
+            icon: '🔊',
+            description: '+1% chance per level that a win triggers a free bonus flip',
+            effect: (level) => `${level}% bonus flip`,
             tier: 3,
-            getValue: (level) => level > 0 ? 0.5 : 0,
+            getValue: (level) => level * 0.01,
+            category: 'master'
+        },
+        metalCoin: {
+            name: 'Metal Coin',
+            icon: '🔩',
+            description: '+10% base durability across all equipped items',
+            effect: (level) => `+${level * 10}% durability`,
+            tier: 2,
+            getValue: (level) => level * 0.10,
             category: 'advanced'
         },
         goldenEdge: {
             name: 'Golden Edge',
             icon: '✨',
-            description: '+1% chance to earn double coins on correct flip',
-            effect: (level) => `${level}% double coins`,
-            tier: 5,
-            getValue: (level) => level * 0.01,
-            category: 'master'
-        },
-        echoFlip: {
-            name: 'Echo Flip',
-            icon: '🔊',
-            description: '2% chance that winning flip repeats instantly',
-            effect: (level) => `${level * 2}% echo chance`,
-            tier: 5,
-            getValue: (level) => level * 0.02,
-            category: 'master'
-        },
-        bankShield: {
-            name: 'Bank Shield',
-            icon: '🛡️',
-            description: 'When banking, 5% of coins are protected from loss next round',
-            effect: (level) => `${level * 5}% protection`,
-            tier: 6,
+            description: '+5% more gold earned per win',
+            effect: (level) => `+${level * 5}% gold`,
+            tier: 1,
             getValue: (level) => level * 0.05,
-            category: 'legendary'
+            category: 'basic'
         },
-        coinSoul: {
-            name: 'Coin Soul',
-            icon: '👻',
-            description: 'Each 50 total wins adds +0.5% permanent win chance',
-            effect: (level) => level > 0 ? 'Passive global buff' : 'Inactive',
-            tier: 7,
-            getValue: (level) => level > 0 ? 0.005 : 0,
-            category: 'legendary'
-        },
-        reinforcedAlloy: {
-            name: 'Reinforced Alloy',
-            icon: '🔧',
-            description: 'Reduces item durability loss chance by 15% per level',
-            effect: (level) => `${level * 15}% durability protection`,
-            tier: 4,
-            getValue: (level) => level * 0.15,
-            category: 'master'
-        },
-        restorationCircuit: {
-            name: 'Restoration Circuit',
-            icon: '🔄',
-            description: '10% chance to repair 1 durability point after each win streak',
-            effect: (level) => `${level * 10}% repair chance`,
-            tier: 5,
-            getValue: (level) => level * 0.10,
-            category: 'master'
-        },
-        fortuneMemory: {
-            name: 'Fortune Memory',
+        luckyMemory: {
+            name: 'Lucky Memory',
             icon: '🧠',
-            description: '2% chance on flip to prevent item durability loss',
-            effect: (level) => `${level * 2}% durability save`,
-            tier: 6,
-            getValue: (level) => level * 0.02,
+            description: '0.5% chance per level to remember last flip result (improves prediction odds)',
+            effect: (level) => `${(level * 0.5).toFixed(1)}% memory`,
+            tier: 2,
+            getValue: (level) => level * 0.005,
+            category: 'advanced'
+        },
+        safetyToss: {
+            name: 'Safety Toss',
+            icon: '🛡️',
+            description: 'First losing flip each session doesn\'t reset streak',
+            effect: (level) => level > 0 ? 'Active' : 'Inactive',
+            tier: 4,
+            getValue: (level) => level > 0 ? 1 : 0,
             category: 'legendary'
         }
     };
@@ -192,8 +170,8 @@ CoinFlipGame.prototype.openWorkshop = function() {
 };
 
 CoinFlipGame.prototype.updateWorkshopDisplay = function() {
-    // Update tokens
-    document.getElementById('workshopTokens').textContent = this.tokens;
+    // Update bank (gold)
+    document.getElementById('workshopBank').textContent = this.bank;
     
     // Update tier
     document.getElementById('workshopTier').textContent = this.workshopTier;
@@ -213,14 +191,14 @@ CoinFlipGame.prototype.loadUpgradesList = function(category) {
         const upgradeData = this.workshopUpgrades[key];
         const level = upgradeData.level;
         const maxLevel = upgradeData.max;
-        const cost = upgradeData.cost;
+        const cost = this.getUpgradeCost(key);
         
         const div = document.createElement('div');
         div.className = 'upgrade-item';
         
         if (level >= maxLevel) {
             div.classList.add('maxed');
-        } else if (this.tokens < cost) {
+        } else if (this.bank < cost) {
             div.classList.add('disabled');
         }
         
@@ -232,7 +210,7 @@ CoinFlipGame.prototype.loadUpgradesList = function(category) {
                 <div class="upgrade-effect">${upgrade.effect(level)}</div>
             </div>
             <div class="upgrade-cost">
-                ${level >= maxLevel ? 'MAXED' : `${cost} 🎫`}
+                ${level >= maxLevel ? 'MAXED' : `${cost} 🪙`}
             </div>
         `;
         
@@ -252,7 +230,7 @@ CoinFlipGame.prototype.selectUpgrade = function(key) {
     this.selectedUpgrade = key;
     const upgrade = this.upgradeDefinitions[key];
     const upgradeData = this.workshopUpgrades[key];
-    const cost = upgradeData.cost;
+    const cost = this.getUpgradeCost(key);
     
     const selectedDiv = document.getElementById('selectedUpgrade');
     selectedDiv.innerHTML = `
@@ -260,26 +238,26 @@ CoinFlipGame.prototype.selectUpgrade = function(key) {
         <p>${upgrade.description}</p>
         <div>Current: Level ${upgradeData.level}/${upgradeData.max}</div>
         <div>Next Level: ${upgrade.effect(upgradeData.level + 1)}</div>
-        <div>Cost: ${cost} tokens</div>
+        <div>Cost: ${cost} gold</div>
     `;
     
     const purchaseBtn = document.getElementById('purchaseUpgradeBtn');
-    purchaseBtn.disabled = this.tokens < cost || upgradeData.level >= upgradeData.max;
+    purchaseBtn.disabled = this.bank < cost || upgradeData.level >= upgradeData.max;
 };
 
 CoinFlipGame.prototype.purchaseUpgrade = function(key) {
     const upgradeData = this.workshopUpgrades[key];
-    const cost = upgradeData.cost;
+    const cost = this.getUpgradeCost(key);
     
-    if (this.tokens < cost || upgradeData.level >= upgradeData.max) return;
+    if (this.bank < cost || upgradeData.level >= upgradeData.max) return;
     
     // Purchase upgrade
-    this.tokens -= cost;
+    this.bank -= cost;
     upgradeData.level++;
     
     // Save
     this.saveUpgrades();
-    localStorage.setItem('tokens', this.tokens);
+    localStorage.setItem('bank', this.bank);
     
     // Update displays
     this.updateDisplay();
@@ -304,26 +282,32 @@ CoinFlipGame.prototype.refundUpgrade = function(key) {
     if (upgradeData.level <= 0) return;
     
     // Calculate refund (50% of total spent)
-    const totalSpent = upgradeData.level * upgradeData.cost;
+    let totalSpent = 0;
+    for (let i = 0; i < upgradeData.level; i++) {
+        totalSpent += upgradeData.baseCost + (i * upgradeData.baseCost);
+    }
     const refund = Math.floor(totalSpent * 0.5);
     
     // Refund
-    this.tokens += refund;
+    this.bank += refund;
     upgradeData.level = 0;
     
     // Save
     this.saveUpgrades();
-    localStorage.setItem('tokens', this.tokens);
+    localStorage.setItem('bank', this.bank);
     
     // Update
     this.updateDisplay();
     this.updateWorkshopDisplay();
     this.loadUpgradesList(this.upgradeDefinitions[key].category);
     
-    this.showMessage(`REFUNDED! +${refund} TOKENS`);
+    this.showMessage(`REFUNDED! +${refund} GOLD`);
 };
 
-// Remove old getUpgradeCost method as we now use fixed token costs
+CoinFlipGame.prototype.getUpgradeCost = function(key) {
+    const upgradeData = this.workshopUpgrades[key];
+    return upgradeData.baseCost + (upgradeData.level * upgradeData.baseCost);
+};
 
 CoinFlipGame.prototype.toggleRefundMode = function() {
     this.refundMode = !this.refundMode;
@@ -441,8 +425,7 @@ CoinFlipGame.prototype.loadUpgrades = function() {
         });
     }
     
-    this.tokens = parseInt(localStorage.getItem('tokens') || '0');
-    this.totalWins = parseInt(localStorage.getItem('totalWins') || '0');
+    // Remove token system
     this.workshopUnlocked = localStorage.getItem('workshopUnlocked') === 'true';
     this.workshopTier = parseInt(localStorage.getItem('workshopTier') || '1');
 };
@@ -465,22 +448,7 @@ CoinFlipGame.prototype.getUpgradeBonus = function(type) {
     return definition.getValue(upgrade.level);
 };
 
-// Add token earning methods
-CoinFlipGame.prototype.earnTokens = function(amount, reason) {
-    this.tokens += amount;
-    localStorage.setItem('tokens', this.tokens);
-    this.showMessage(`EARNED ${amount} TOKENS! (${reason})`);
-    this.updateWorkshopDisplay();
-};
-
-CoinFlipGame.prototype.checkTokenMilestones = function() {
-    // Award tokens for streak milestones
-    const streakMilestones = [5, 10, 15, 20, 25, 30, 40, 50, 75, 100];
-    if (streakMilestones.includes(this.streak)) {
-        const tokenAmount = Math.floor(this.streak / 5);
-        this.earnTokens(tokenAmount, `${this.streak} STREAK MILESTONE`);
-    }
-};
+// Remove token earning methods
 
 // Initialize upgrade system
 document.addEventListener('DOMContentLoaded', function() {
