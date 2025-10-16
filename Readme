@@ -1,1 +1,41 @@
+# Tavern Coin Flip Game
 
+A beautiful, interactive coin flip game set in a medieval tavern atmosphere!
+
+## Features
+
+- **Stunning Tavern Background**: Uses the provided tavern image as an immersive background
+- **Realistic Coin Animation**: Smooth 3D coin flip animations with heads and tails
+- **Interactive Controls**: 
+  - Click the "Flip Coin" button
+  - Press SPACEBAR to flip
+  - Click directly on the coin
+- **Statistics Tracking**: 
+  - Tracks heads vs tails count
+  - Shows current streak
+  - Saves stats automatically using localStorage
+- **Responsive Design**: Works on desktop and mobile devices
+- **Tavern Theme**: Medieval-inspired UI with golden colors and tavern aesthetics
+
+## How to Play
+
+1. Open `index.html` in your web browser
+2. Click "Flip Coin" or press SPACEBAR to flip the coin
+3. Watch the beautiful animation and see the result
+4. Track your statistics and try to build up streaks!
+5. Use "Reset Stats" to clear your statistics
+
+## Controls
+
+- **Flip Coin**: Click button, press SPACE, or click the coin
+- **Reset Stats**: Click "Reset Stats" button or press Ctrl+R
+- **View Stats**: Automatically displayed and saved
+
+## Files
+
+- `index.html` - Main game page
+- `styles.css` - Styling and animations
+- `script.js` - Game logic and functionality  
+- `tavern image.png` - Background image
+
+Enjoy testing your luck in the tavern! 🎲
