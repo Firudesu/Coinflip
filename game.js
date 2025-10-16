@@ -214,6 +214,23 @@ class CoinFlipGame {
             winChance += this.activeEffects.predictionBuff;
         }
         
+        // Apply steady core
+        if (this.activeEffects.steadyCore) {
+            winChance += 0.08;
+        }
+        
+        // Apply edge bias
+        if (this.activeEffects.edgeBias) {
+            const edgeBiasTier = Math.min(this.activeEffects.edgeBias, 4);
+            const edgeBiasValues = [0.01, 0.02, 0.03, 0.05];
+            winChance += edgeBiasValues[edgeBiasTier - 1];
+        }
+        
+        // Apply coin of paradox
+        if (this.activeEffects.coinParadox) {
+            winChance += 0.08;
+        }
+        
         // Apply lucky charm (guaranteed win)
         if (this.activeEffects.luckyCharm) {
             winChance = 1;
@@ -313,6 +330,21 @@ class CoinFlipGame {
                 this.activeEffects.greedGauge--;
             }
             
+            // Apply greed engine
+            if (this.activeEffects.greedEngine) {
+                multiplierGrowth = 0.15;
+            }
+            
+            // Apply double streak
+            if (this.activeEffects.doubleStreak) {
+                multiplierGrowth *= 2;
+            }
+            
+            // Apply coin of paradox
+            if (this.activeEffects.coinParadox) {
+                multiplierGrowth += 0.05;
+            }
+            
             // Apply freeze multiplier
             if (this.activeEffects.freezeMultiplier && this.activeEffects.freezeMultiplier.flips > 0) {
                 this.multiplier = this.activeEffects.freezeMultiplier.value;
@@ -326,6 +358,12 @@ class CoinFlipGame {
             
             const points = Math.round(this.basePoints * this.multiplier);
             this.score += points;
+            
+            // Apply doubletap core (bonus every 5th win)
+            if (this.activeEffects.doubletapCore && this.streak % 5 === 0) {
+                this.score += points;
+                this.showMessage('DOUBLETAP CORE! BONUS WIN!');
+            }
             
             // Use up tactical delay if active
             if (this.activeEffects.tacticalDelay > 0) {
@@ -369,6 +407,22 @@ class CoinFlipGame {
                 return; // Don't lose!
             }
             
+            // Apply streak saver
+            if (this.activeEffects.streakSaver && Math.random() < 0.15) {
+                this.showMessage('STREAK SAVER! STREAK PRESERVED!');
+                this.updateDisplay();
+                this.updateCoinEffects();
+                return; // Don't continue with normal loss
+            }
+            
+            // Apply coin of paradox streak save
+            if (this.activeEffects.coinParadox && Math.random() < 0.05) {
+                this.showMessage('COIN OF PARADOX! STREAK SAVED!');
+                this.updateDisplay();
+                this.updateCoinEffects();
+                return; // Don't continue with normal loss
+            }
+            
             // Apply second chance
             if (this.activeEffects.secondChance) {
                 this.streak = Math.floor(this.streak / 2);
@@ -388,6 +442,15 @@ class CoinFlipGame {
                 localStorage.setItem('bank', this.bank);
                 this.activeEffects.insurance = false;
                 this.showMessage(`INSURANCE! RECOVERED ${recovered} COINS TO BANK!`);
+            }
+            
+            // Apply insurance module
+            if (this.activeEffects.insuranceModule && lostScore > 0 && !this.insuranceModuleUsed) {
+                const recovered = Math.floor(lostScore * 0.25);
+                this.bank += recovered;
+                localStorage.setItem('bank', this.bank);
+                this.insuranceModuleUsed = true;
+                this.showMessage(`INSURANCE MODULE! RECOVERED ${recovered} COINS TO BANK!`);
             }
             
             // Check for epic fail
@@ -730,6 +793,15 @@ class CoinFlipGame {
                 bankedAmount = Math.floor(bankedAmount * this.activeEffects.bankBoost);
                 this.activeEffects.bankBoost = null;
                 this.showMessage(`BANK BOOST! +20% BONUS!`);
+            }
+            
+            // Apply bank buffer
+            if (this.activeEffects.bankBuffer) {
+                const bankBufferTier = Math.min(this.activeEffects.bankBuffer, 2);
+                const bankBufferValues = [0.15, 0.30];
+                const bonus = bankBufferValues[bankBufferTier - 1];
+                bankedAmount = Math.floor(bankedAmount * (1 + bonus));
+                this.showMessage(`BANK BUFFER! +${Math.round(bonus * 100)}% BONUS!`);
             }
             
             this.bank += bankedAmount;
@@ -1336,142 +1408,219 @@ Play at: ${window.location.href}`;
     defineShopItems() {
         return [
             {
-                id: 'lucky_charm',
-                name: 'Lucky Charm',
-                icon: '🍀',
-                description: 'Guarantees your next flip is correct',
-                effect: 'Single-use safety net',
-                price: 50,
+                id: 'core_greed_engine',
+                name: 'Greed Engine',
+                icon: '⚙️',
+                description: 'Increase per-win multiplier growth from 0.1 to 0.15',
+                effect: 'Core equipment',
+                price: 3000,
                 rarity: 'rare',
-                uses: 1,
+                category: 'Core',
+                type: 'equip',
+                maxTier: 1,
+                tier: 1,
+                values: { multiplier_gain: 0.15 },
                 apply: () => {
-                    this.activeEffects.luckyCharm = true;
-                    this.showMessage('LUCKY CHARM ACTIVE! NEXT FLIP GUARANTEED!');
+                    this.activeEffects.greedEngine = true;
+                    this.showMessage('GREED ENGINE ACTIVE! +0.15 MULTIPLIER GAIN!');
                 }
             },
             {
-                id: 'second_chance',
-                name: 'Second Chance',
-                icon: '💖',
-                description: 'If you lose, streak drops by half instead of zero',
-                effect: 'Comeback potential',
-                price: 75,
+                id: 'core_steady',
+                name: 'Steady Core',
+                icon: '🎯',
+                description: 'Increase base win chance by +8%',
+                effect: 'Core equipment',
+                price: 3000,
+                rarity: 'rare',
+                category: 'Core',
+                type: 'equip',
+                maxTier: 1,
+                tier: 1,
+                values: { win_chance: 0.08 },
+                apply: () => {
+                    this.activeEffects.steadyCore = true;
+                    this.showMessage('STEADY CORE ACTIVE! +8% WIN CHANCE!');
+                }
+            },
+            {
+                id: 'core_doubletap',
+                name: 'Doubletap Core',
+                icon: '💥',
+                description: 'Every 5th correct flip counts as an extra win',
+                effect: 'Core equipment',
+                price: 7500,
                 rarity: 'epic',
-                uses: 1,
+                category: 'Core',
+                type: 'equip',
+                maxTier: 1,
+                tier: 1,
+                values: { bonus_interval: 5 },
                 apply: () => {
-                    this.activeEffects.secondChance = true;
-                    this.showMessage('SECOND CHANCE ACTIVE!');
+                    this.activeEffects.doubletapCore = true;
+                    this.showMessage('DOUBLETAP CORE ACTIVE! BONUS EVERY 5TH WIN!');
                 }
             },
             {
-                id: 'mirror_coin',
-                name: 'Mirror Coin',
-                icon: '🪞',
-                description: 'Flip twice and pick which result counts',
-                effect: 'Double the tension',
-                price: 60,
-                rarity: 'rare',
-                uses: 1,
-                apply: () => {
-                    this.activeEffects.mirrorCoin = true;
-                    this.showMessage('MIRROR COIN ACTIVE! TWO FLIPS!');
-                }
-            },
-            {
-                id: 'bank_boost',
-                name: 'Bank Boost',
-                icon: '💰',
-                description: 'Next bank gets +20% bonus',
-                effect: 'Encourages greed',
-                price: 40,
-                rarity: 'common',
-                uses: 1,
-                apply: () => {
-                    this.activeEffects.bankBoost = 1.2;
-                    this.showMessage('BANK BOOST ACTIVE! +20% ON NEXT BANK!');
-                }
-            },
-            {
-                id: 'prediction_buff',
-                name: 'Prediction Buff',
-                icon: '🔮',
-                description: 'Increases odds to 55% for next flip',
-                effect: 'Slight advantage',
-                price: 30,
-                rarity: 'common',
-                uses: 3,
-                apply: () => {
-                    this.activeEffects.predictionBuff = (this.activeEffects.predictionBuff || 0) + 0.05;
-                    this.showMessage(`PREDICTION BUFF! ${Math.round((50 + this.activeEffects.predictionBuff * 100))}% ODDS!`);
-                }
-            },
-            {
-                id: 'shadow_bet',
-                name: 'Shadow Bet',
-                icon: '👤',
-                description: 'Wager half score on secret flip. Win = x2, Lose = bust',
-                effect: 'High risk/reward',
-                price: 100,
-                rarity: 'legendary',
-                uses: 1,
-                apply: () => {
-                    this.triggerShadowBet();
-                }
-            },
-            {
-                id: 'freeze_multiplier',
-                name: 'Freeze Multi',
-                icon: '❄️',
-                description: 'Locks multiplier for 3 flips',
-                effect: 'Safe buffer',
-                price: 45,
-                rarity: 'rare',
-                uses: 1,
-                apply: () => {
-                    this.activeEffects.freezeMultiplier = { value: this.multiplier, flips: 3 };
-                    this.showMessage(`MULTIPLIER FROZEN AT x${this.multiplier.toFixed(1)} FOR 3 FLIPS!`);
-                }
-            },
-            {
-                id: 'greed_gauge',
-                name: 'Greed Gauge',
+                id: 'mod_double_streak',
+                name: 'Double Streak',
                 icon: '📈',
-                description: 'Multiplier grows +0.2 instead of +0.1',
-                effect: 'Faster rewards',
-                price: 55,
+                description: 'Doubles per-win multiplier gain',
+                effect: 'Modifier equipment',
+                price: 4500,
                 rarity: 'rare',
-                uses: 5,
+                category: 'Modifier',
+                type: 'equip',
+                maxTier: 1,
+                tier: 1,
+                values: { multiplier_x: 2 },
                 apply: () => {
-                    this.activeEffects.greedGauge = (this.activeEffects.greedGauge || 0) + 5;
-                    this.showMessage('GREED GAUGE ACTIVE! FASTER MULTIPLIER!');
+                    this.activeEffects.doubleStreak = true;
+                    this.showMessage('DOUBLE STREAK ACTIVE! 2X MULTIPLIER GAIN!');
                 }
             },
             {
-                id: 'insurance',
-                name: 'Insurance',
+                id: 'mod_streak_saver',
+                name: 'Streak Saver',
                 icon: '🛡️',
-                description: 'Recover 25% of lost score as bankable cash',
-                effect: 'Loss protection',
-                price: 35,
-                rarity: 'common',
-                uses: 1,
+                description: '15% chance to keep streak on loss',
+                effect: 'Modifier equipment',
+                price: 6000,
+                rarity: 'epic',
+                category: 'Modifier',
+                type: 'equip',
+                maxTier: 1,
+                tier: 1,
+                values: { save_chance: 0.15 },
                 apply: () => {
-                    this.activeEffects.insurance = true;
-                    this.showMessage('INSURANCE ACTIVE! 25% PROTECTION!');
+                    this.activeEffects.streakSaver = true;
+                    this.showMessage('STREAK SAVER ACTIVE! 15% SAVE CHANCE!');
                 }
             },
             {
-                id: 'tactical_delay',
-                name: 'Tactical Delay',
-                icon: '⏱️',
-                description: 'Slows coin flip for dramatic effect',
-                effect: 'Cosmetic power',
-                price: 20,
+                id: 'mod_edge_bias',
+                name: 'Edge Bias',
+                icon: '⚖️',
+                description: '+1% to +5% base win chance per rarity level',
+                effect: 'Modifier equipment',
+                price: 800,
                 rarity: 'common',
-                uses: 3,
+                category: 'Modifier',
+                type: 'equip',
+                maxTier: 4,
+                tier: 1,
+                values: { win_chance: [0.01, 0.02, 0.03, 0.05] },
                 apply: () => {
-                    this.activeEffects.tacticalDelay = (this.activeEffects.tacticalDelay || 0) + 3;
-                    this.showMessage('TACTICAL DELAY ACTIVE! SLOW-MO FLIPS!');
+                    this.activeEffects.edgeBias = (this.activeEffects.edgeBias || 0) + 1;
+                    this.showMessage(`EDGE BIAS UPGRADED! TIER ${this.activeEffects.edgeBias}!`);
+                }
+            },
+            {
+                id: 'util_bank_buffer',
+                name: 'Bank Buffer',
+                icon: '💰',
+                description: 'Gain +15% to +30% more when banking score',
+                effect: 'Utility equipment',
+                price: 1200,
+                rarity: 'rare',
+                category: 'Utility',
+                type: 'equip',
+                maxTier: 2,
+                tier: 1,
+                values: { bank_bonus: [0.15, 0.30] },
+                apply: () => {
+                    this.activeEffects.bankBuffer = (this.activeEffects.bankBuffer || 0) + 1;
+                    this.showMessage(`BANK BUFFER UPGRADED! TIER ${this.activeEffects.bankBuffer}!`);
+                }
+            },
+            {
+                id: 'util_insurance_module',
+                name: 'Insurance Module',
+                icon: '🔒',
+                description: 'On loss, recover 25% of streak score into bank (once per run)',
+                effect: 'Utility equipment',
+                price: 4000,
+                rarity: 'rare',
+                category: 'Utility',
+                type: 'equip',
+                maxTier: 1,
+                tier: 1,
+                values: { recover_pct: 0.25 },
+                apply: () => {
+                    this.activeEffects.insuranceModule = true;
+                    this.showMessage('INSURANCE MODULE ACTIVE! 25% RECOVERY!');
+                }
+            },
+            {
+                id: 'util_mirror_socket',
+                name: 'Mirror Socket',
+                icon: '🪞',
+                description: 'Once per run, after a loss, flip twice and choose the result',
+                effect: 'Utility equipment',
+                price: 5500,
+                rarity: 'epic',
+                category: 'Utility',
+                type: 'equip',
+                maxTier: 1,
+                tier: 1,
+                values: { uses: 1 },
+                apply: () => {
+                    this.activeEffects.mirrorSocket = true;
+                    this.showMessage('MIRROR SOCKET ACTIVE! CHOOSE YOUR RESULT!');
+                }
+            },
+            {
+                id: 'battle_arena_edge',
+                name: 'Arena Edge',
+                icon: '⚔️',
+                description: '+10% win chance vs opponents in battle mode',
+                effect: 'Battle equipment',
+                price: 3500,
+                rarity: 'rare',
+                category: 'Battle',
+                type: 'equip',
+                maxTier: 1,
+                tier: 1,
+                values: { battle_win_chance: 0.1 },
+                apply: () => {
+                    this.activeEffects.arenaEdge = true;
+                    this.showMessage('ARENA EDGE ACTIVE! +10% BATTLE WIN CHANCE!');
+                }
+            },
+            {
+                id: 'battle_wager_multiplier',
+                name: 'Wager Multiplier',
+                icon: '🎲',
+                description: 'Battle wins increase payout by 1.2x',
+                effect: 'Battle equipment',
+                price: 6500,
+                rarity: 'epic',
+                category: 'Battle',
+                type: 'equip',
+                maxTier: 1,
+                tier: 1,
+                values: { wager_mult: 1.2 },
+                apply: () => {
+                    this.activeEffects.wagerMultiplier = true;
+                    this.showMessage('WAGER MULTIPLIER ACTIVE! 1.2X BATTLE PAYOUTS!');
+                }
+            },
+            {
+                id: 'legendary_coin_paradox',
+                name: 'Coin of Paradox',
+                icon: '🪙',
+                description: '+8% win chance, +5% streak save, +0.05 per-win multiplier',
+                effect: 'Legendary equipment',
+                price: 30000,
+                rarity: 'legendary',
+                category: 'Legendary',
+                type: 'equip',
+                maxTier: 1,
+                tier: 1,
+                values: { win_chance: 0.08, save_chance: 0.05, multiplier_gain: 0.05 },
+                apply: () => {
+                    this.activeEffects.coinParadox = true;
+                    this.showMessage('COIN OF PARADOX ACTIVE! LEGENDARY POWERS!');
                 }
             }
         ];
