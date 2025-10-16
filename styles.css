@@ -1948,13 +1948,85 @@ body::before {
     margin: 10px;
 }
 
-@media (max-width: 600px) {
+/* Tavern-themed decorative elements */
+.tavern-decoration {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: -2;
+}
+
+.tavern-decoration::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: 
+        /* Tavern beams */
+        linear-gradient(90deg, transparent 0%, rgba(139, 69, 19, 0.3) 20%, rgba(139, 69, 19, 0.3) 25%, transparent 30%),
+        linear-gradient(90deg, transparent 70%, rgba(139, 69, 19, 0.3) 75%, rgba(139, 69, 19, 0.3) 80%, transparent 85%),
+        /* Warm lighting spots */
+        radial-gradient(circle at 20% 20%, rgba(255, 140, 0, 0.1) 0%, transparent 30%),
+        radial-gradient(circle at 80% 80%, rgba(255, 140, 0, 0.08) 0%, transparent 25%);
+}
+
+/* Enhanced coin container for tavern theme */
+.coin-container {
+    position: relative;
+    margin: 30px auto;
+    width: 200px;
+    height: 220px;
+    background: radial-gradient(circle, rgba(255, 140, 0, 0.1) 0%, transparent 70%);
+    border-radius: 50%;
+    padding: 20px;
+}
+
+/* Tavern-style stat boxes */
+.stat-box {
+    background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+    border: 2px solid #8B4513;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: 
+        inset 0 0 10px rgba(0, 0, 0, 0.3),
+        0 0 10px rgba(255, 140, 0, 0.1);
+}
+
+/* Enhanced bank display for tavern theme */
+.bank-display {
+    background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
+    border: 3px solid #D2691E;
+    padding: 15px 30px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 
+        0 0 20px rgba(210, 105, 30, 0.3),
+        inset 0 0 10px rgba(255, 140, 0, 0.1);
+}
+
+/* Responsive design improvements */
+@media (max-width: 768px) {
+    .game-container {
+        width: 95%;
+        padding: 20px;
+        margin: 10px;
+    }
+    
     .game-title {
         font-size: 18px;
     }
     
     .stats-container {
         grid-template-columns: 1fr;
+        gap: 10px;
     }
     
     .pixel-btn {
@@ -1964,9 +2036,75 @@ body::before {
     
     .button-row {
         flex-direction: column;
+        gap: 10px;
     }
     
     #announcementText {
         font-size: 16px;
+    }
+    
+    .coin-container {
+        width: 180px;
+        height: 200px;
+        margin: 20px auto;
+    }
+    
+    #coinCanvas {
+        width: 180px;
+        height: 180px;
+    }
+}
+
+@media (max-width: 480px) {
+    .game-container {
+        width: 98%;
+        padding: 15px;
+        margin: 5px;
+    }
+    
+    .game-title {
+        font-size: 16px;
+    }
+    
+    .pixel-btn {
+        font-size: 9px;
+        padding: 10px 15px;
+    }
+    
+    .coin-container {
+        width: 160px;
+        height: 180px;
+        margin: 15px auto;
+    }
+    
+    #coinCanvas {
+        width: 160px;
+        height: 160px;
+    }
+    
+    .stat-box {
+        padding: 10px;
+    }
+    
+    .bank-display {
+        padding: 10px 20px;
+    }
+}
+
+/* Large screen optimizations */
+@media (min-width: 1200px) {
+    .game-container {
+        max-width: 700px;
+        padding: 40px;
+    }
+    
+    .coin-container {
+        width: 220px;
+        height: 240px;
+    }
+    
+    #coinCanvas {
+        width: 220px;
+        height: 220px;
     }
 }
