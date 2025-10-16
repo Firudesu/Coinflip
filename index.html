@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tavern Coin Flip Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <h1 class="game-title">Tavern Coin Flip</h1>
+        
+        <div class="coin-container">
+            <div class="coin" id="coin">
+                <div class="coin-side heads">
+                    <span>HEADS</span>
+                </div>
+                <div class="coin-side tails">
+                    <span>TAILS</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="game-controls">
+            <h2>Make Your Choice</h2>
+            <div class="choice-buttons">
+                <button class="choice-btn" onclick="makeChoice('heads')">Heads</button>
+                <button class="choice-btn" onclick="makeChoice('tails')">Tails</button>
+            </div>
+            
+            <button class="flip-btn" id="flipBtn" onclick="flipCoin()" disabled>Flip the Coin!</button>
+        </div>
+
+        <div class="result-display" id="resultDisplay">
+            <h3 id="resultText"></h3>
+            <p id="scoreText">Wins: 0 | Losses: 0</p>
+        </div>
+
+        <div class="game-info">
+            <p>Welcome to the Tavern! Test your luck with a coin flip.</p>
+            <p>Choose heads or tails, then flip the coin!</p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
