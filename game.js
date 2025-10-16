@@ -235,11 +235,7 @@ class CoinFlipGame {
         if (this.getUpgradeBonus) {
             winChance += this.getUpgradeBonus('winChance');
             
-            // Coin Soul: Each 50 total wins adds +0.5% permanent win chance
-            if (this.workshopUpgrades && this.workshopUpgrades.coinSoul.level > 0) {
-                const coinSoulBonus = Math.floor(this.totalWins / 50) * 0.005;
-                winChance += coinSoulBonus;
-            }
+            // DISABLED: Coin Soul upgrade removed
         }
         
         // Apply equipped item effects
@@ -358,10 +354,7 @@ class CoinFlipGame {
             // Apply equipped item effects for multiplier growth
             let multiplierGrowth = 0.1;
             
-            // Apply Momentum Engine workshop upgrade
-            if (this.workshopUpgrades && this.workshopUpgrades.momentumEngine.level > 0) {
-                multiplierGrowth += this.workshopUpgrades.momentumEngine.level * 0.02;
-            }
+            // DISABLED: Momentum Engine upgrade (using different name now)
             
             this.equippedItems.forEach(item => {
                 if (!item || item.durability <= 0) return;
@@ -389,17 +382,8 @@ class CoinFlipGame {
             
             let points = Math.round(this.basePoints * this.multiplier);
             
-            // Apply event effects for points
-            if (this.activeEffects && this.activeEffects.goldenShine && this.activeEffects.goldenShine > 0) {
-                points *= 2; // Double gold
-                this.showMessage('GOLDEN SHINE! DOUBLE GOLD!');
-            }
-            
-            if (this.activeEffects && this.activeEffects.doubleOrNothing) {
-                points *= 2; // Double reward
-                delete this.activeEffects.doubleOrNothing;
-                this.showMessage('DOUBLE OR NOTHING! DOUBLE REWARD!');
-            }
+            // DISABLED: Event effects for points
+            console.log('Event effects for points disabled for debugging');
             
             // Apply equipped item effects for gold
             this.equippedItems.forEach(item => {
@@ -429,32 +413,7 @@ class CoinFlipGame {
             
             // Apply workshop upgrades for points
             if (this.workshopUpgrades) {
-                // Golden Edge: +1% chance to earn double coins on correct flip
-                if (this.workshopUpgrades.goldenEdge.level > 0) {
-                    const doubleChance = this.workshopUpgrades.goldenEdge.level * 0.01;
-                    if (Math.random() < doubleChance) {
-                        points *= 2;
-                        this.showMessage('GOLDEN EDGE! DOUBLE COINS!');
-                    }
-                }
-                
-                // Twin Toss: 2% chance to land double result
-                if (this.workshopUpgrades.twinToss.level > 0) {
-                    const twinChance = this.workshopUpgrades.twinToss.level * 0.02;
-                    if (Math.random() < twinChance) {
-                        points *= 2;
-                        this.showMessage('TWIN TOSS! DOUBLE RESULT!');
-                    }
-                }
-                
-                // Echo Flip: 2% chance that winning flip repeats instantly
-                if (this.workshopUpgrades.echoFlip.level > 0) {
-                    const echoChance = this.workshopUpgrades.echoFlip.level * 0.02;
-                    if (Math.random() < echoChance) {
-                        points *= 2;
-                        this.showMessage('ECHO FLIP! INSTANT REPEAT!');
-                    }
-                }
+                // DISABLED: Workshop upgrade effects (using different names now)
             }
             
             // Apply equipped item effects for points
@@ -527,18 +486,7 @@ class CoinFlipGame {
             const lostScore = this.score;
             const lostStreak = this.streak;
             
-            // Check for Second Chance workshop upgrade
-            if (this.workshopUpgrades && this.workshopUpgrades.secondChance.level > 0) {
-                const reflipChance = this.workshopUpgrades.secondChance.level * 0.05;
-                if (Math.random() < reflipChance) {
-                    this.showMessage('SECOND CHANCE! REFLIPPING...');
-                    // Reset state and trigger another flip
-                    setTimeout(() => {
-                        this.forceResetGameState();
-                    }, 1000);
-                    return;
-                }
-            }
+            // DISABLED: Second Chance upgrade (using different name now)
             
             // Apply equipped item streak save effects
             let streakSaved = false;
@@ -614,8 +562,8 @@ class CoinFlipGame {
             this.disableFireMode();
             this.updateCoinEffects();
             
-            // Check Safety Net workshop upgrade
-            const keepMultiplier = this.workshopUpgrades && this.workshopUpgrades.safetyNet.level > 0;
+            // DISABLED: Safety Net upgrade (using different name now)
+            const keepMultiplier = false;
             
             // Reset score, streak, and multiplier on loss
             this.score = 0;
@@ -915,14 +863,7 @@ class CoinFlipGame {
             let bankedAmount = this.score;
             const bankedStreak = this.streak;
             
-            // Apply workshop banking upgrades
-            if (this.workshopUpgrades && this.workshopUpgrades.bankShield.level > 0) {
-                const protectionAmount = Math.floor(bankedAmount * this.workshopUpgrades.bankShield.level * 0.05);
-                if (!this.bankProtection) this.bankProtection = 0;
-                this.bankProtection += protectionAmount;
-                localStorage.setItem('bankProtection', this.bankProtection);
-                this.showMessage(`BANK SHIELD! ${protectionAmount} COINS PROTECTED!`);
-            }
+            // DISABLED: Workshop banking upgrades
             
             // Apply equipped item banking effects
             this.equippedItems.forEach(item => {
@@ -2096,10 +2037,7 @@ Play at: ${window.location.href}`;
         // New durability system: only triggered on losing flips
         let baseBreakChance = 10; // 10% base break chance
         
-        // Apply Streak Protector workshop upgrade
-        if (this.workshopUpgrades && this.workshopUpgrades.streakProtector.level > 0) {
-            baseBreakChance -= (this.workshopUpgrades.streakProtector.level * 2);
-        }
+        // DISABLED: Streak Protector upgrade
         
         // Check each equipped item for potential breaking
         this.equippedItems.forEach((item, index) => {
