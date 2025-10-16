@@ -202,13 +202,17 @@ class CoinFlipGame {
         if (this.isFlipping) return;
         
         // Check for random event before flip
-        if (this.checkForRandomEvent) {
-            const eventTriggered = this.checkForRandomEvent();
-            if (eventTriggered) {
-                console.log('Random event triggered!');
+        try {
+            if (this.checkForRandomEvent) {
+                const eventTriggered = this.checkForRandomEvent();
+                if (eventTriggered) {
+                    console.log('Random event triggered!');
+                }
+            } else {
+                console.log('Random events not initialized yet');
             }
-        } else {
-            console.log('Random events not initialized yet');
+        } catch (error) {
+            console.error('Error in random event check:', error);
         }
         
         this.isFlipping = true;
@@ -244,20 +248,22 @@ class CoinFlipGame {
         });
         
         // Apply active event effects
-        if (this.activeEffects.luckySurge > 0) {
-            winChance += 0.10; // +10% win chance
-        }
-        if (this.activeEffects.weightedCoin > 0) {
-            winChance -= 0.10; // -10% win chance
-        }
-        if (this.activeEffects.blessedCoin) {
-            winChance = 1.0; // Guaranteed win
-        }
-        if (this.activeEffects.misflip) {
-            winChance = 0.0; // Guaranteed loss
-        }
-        if (this.activeEffects.reverseLuck) {
-            winChance = 1.0 - winChance; // Invert win chance
+        if (this.activeEffects) {
+            if (this.activeEffects.luckySurge && this.activeEffects.luckySurge > 0) {
+                winChance += 0.10; // +10% win chance
+            }
+            if (this.activeEffects.weightedCoin && this.activeEffects.weightedCoin > 0) {
+                winChance -= 0.10; // -10% win chance
+            }
+            if (this.activeEffects.blessedCoin) {
+                winChance = 1.0; // Guaranteed win
+            }
+            if (this.activeEffects.misflip) {
+                winChance = 0.0; // Guaranteed loss
+            }
+            if (this.activeEffects.reverseLuck) {
+                winChance = 1.0 - winChance; // Invert win chance
+            }
         }
         
         let result = Math.random() < winChance ? this.playerChoice : 
@@ -350,8 +356,14 @@ class CoinFlipGame {
         
         // Durability only processes on losses, not wins
         
-        // Process active event effects
-        this.processActiveEventEffects(won);
+        // Process active event effects (but don't change the main flow for now)
+        try {
+            if (this.activeEffects) {
+                this.processActiveEventEffects(won);
+            }
+        } catch (error) {
+            console.error('Error processing event effects:', error);
+        }
         
         if (won) {
             this.streak++;
@@ -391,12 +403,12 @@ class CoinFlipGame {
             let points = Math.round(this.basePoints * this.multiplier);
             
             // Apply event effects for points
-            if (this.activeEffects.goldenShine > 0) {
+            if (this.activeEffects && this.activeEffects.goldenShine && this.activeEffects.goldenShine > 0) {
                 points *= 2; // Double gold
                 this.showMessage('GOLDEN SHINE! DOUBLE GOLD!');
             }
             
-            if (this.activeEffects.doubleOrNothing) {
+            if (this.activeEffects && this.activeEffects.doubleOrNothing) {
                 points *= 2; // Double reward
                 delete this.activeEffects.doubleOrNothing;
                 this.showMessage('DOUBLE OR NOTHING! DOUBLE REWARD!');
@@ -1987,8 +1999,13 @@ Play at: ${window.location.href}`;
     
     // Process active event effects
     processActiveEventEffects(won) {
+        if (!this.activeEffects) {
+            this.activeEffects = {};
+            return;
+        }
+        
         // Decrement duration-based effects
-        if (this.activeEffects.luckySurge > 0) {
+        if (this.activeEffects.luckySurge && this.activeEffects.luckySurge > 0) {
             this.activeEffects.luckySurge--;
             if (this.activeEffects.luckySurge <= 0) {
                 delete this.activeEffects.luckySurge;
@@ -1996,7 +2013,7 @@ Play at: ${window.location.href}`;
             }
         }
         
-        if (this.activeEffects.weightedCoin > 0) {
+        if (this.activeEffects.weightedCoin && this.activeEffects.weightedCoin > 0) {
             this.activeEffects.weightedCoin--;
             if (this.activeEffects.weightedCoin <= 0) {
                 delete this.activeEffects.weightedCoin;
@@ -2004,7 +2021,7 @@ Play at: ${window.location.href}`;
             }
         }
         
-        if (this.activeEffects.goldenShine > 0) {
+        if (this.activeEffects.goldenShine && this.activeEffects.goldenShine > 0) {
             this.activeEffects.goldenShine--;
             if (this.activeEffects.goldenShine <= 0) {
                 delete this.activeEffects.goldenShine;
@@ -2012,7 +2029,7 @@ Play at: ${window.location.href}`;
             }
         }
         
-        if (this.activeEffects.mirageToss > 0) {
+        if (this.activeEffects.mirageToss && this.activeEffects.mirageToss > 0) {
             this.activeEffects.mirageToss--;
             if (this.activeEffects.mirageToss <= 0) {
                 delete this.activeEffects.mirageToss;
@@ -2028,7 +2045,7 @@ Play at: ${window.location.href}`;
             }
         }
         
-        // One-time effects
+        // Clear one-time effects
         if (this.activeEffects.blessedCoin) {
             delete this.activeEffects.blessedCoin;
         }
@@ -2041,21 +2058,9 @@ Play at: ${window.location.href}`;
             delete this.activeEffects.reverseLuck;
         }
         
-        if (this.activeEffects.safeFlip && !won) {
-            // Safe flip prevents streak loss
-            delete this.activeEffects.safeFlip;
-            this.showMessage('SAFE FLIP ACTIVATED! STREAK PROTECTED!');
-            return true; // Indicate streak was saved
+        if (this.activeEffects.doubleOrNothing) {
+            delete this.activeEffects.doubleOrNothing;
         }
-        
-        if (this.activeEffects.fakeFlip && won) {
-            // Fake flip makes win count as loss
-            delete this.activeEffects.fakeFlip;
-            this.showMessage('FAKE FLIP! WIN COUNTS AS LOSS!');
-            return false; // Force loss
-        }
-        
-        return won; // Return original result if no special effects
     }
     
     saveInventory() {

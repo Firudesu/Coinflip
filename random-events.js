@@ -314,8 +314,9 @@ CoinFlipGame.prototype.defineRandomEvents = function() {
 };
 
 CoinFlipGame.prototype.checkForRandomEvent = function() {
-    // Don't trigger during battles or other special modes
-    if (this.battleMode?.battleInProgress || this.eventActive) return false;
+    try {
+        // Don't trigger during battles or other special modes
+        if (this.battleMode?.battleInProgress || this.eventActive) return false;
     
     // New event trigger logic
     let baseEventChance = 8; // 8% base chance per winning flip
@@ -334,7 +335,7 @@ CoinFlipGame.prototype.checkForRandomEvent = function() {
     });
     
     // Apply Fate Control workshop upgrade (+3% positive, -3% negative per level)
-    if (this.workshopUpgrades && this.workshopUpgrades.fateControl.level > 0) {
+    if (this.workshopUpgrades && this.workshopUpgrades.fateControl && this.workshopUpgrades.fateControl.level > 0) {
         const fateLevel = this.workshopUpgrades.fateControl.level;
         positiveModifier += fateLevel * 3;
         negativeModifier -= fateLevel * 3;
@@ -406,6 +407,11 @@ CoinFlipGame.prototype.checkForRandomEvent = function() {
     // Trigger event
     this.triggerRandomEvent(selectedTier, selectedEventKey);
     return true;
+    
+    } catch (error) {
+        console.error('Error in checkForRandomEvent:', error);
+        return false;
+    }
 };
 
 CoinFlipGame.prototype.isPositiveEvent = function(eventKey) {
