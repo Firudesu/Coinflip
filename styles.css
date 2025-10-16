@@ -36,14 +36,18 @@ body {
 }
 
 .game-title {
-    color: #ffeb3b;
-    font-size: 24px;
+    max-width: 100%;
+    height: auto;
     margin-bottom: 30px;
-    text-shadow: 
-        2px 2px 0 #ff6b6b,
-        4px 4px 0 #4ecdc4,
-        6px 6px 0 #000;
-    letter-spacing: 2px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    filter: drop-shadow(2px 2px 0 #ff6b6b) 
+            drop-shadow(4px 4px 0 #4ecdc4) 
+            drop-shadow(6px 6px 0 #000);
     animation: pulse 2s infinite;
 }
 
@@ -1879,7 +1883,8 @@ body {
 
 @media (max-width: 600px) {
     .game-title {
-        font-size: 18px;
+        max-width: 90%;
+        margin-bottom: 20px;
     }
     
     .stats-container {
