@@ -33,6 +33,7 @@ body {
     width: 90%;
     text-align: center;
     position: relative;
+    z-index: 2;
 }
 
 .title-section {
@@ -52,6 +53,7 @@ body {
     image-rendering: crisp-edges;
     object-fit: cover;
     object-position: center top;
+    z-index: 1;
 }
 
 .game-title {
