@@ -8,7 +8,12 @@
 
 body {
     font-family: 'Press Start 2P', monospace;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    /* Tavern background image with fallback gradient */
+    background-image: url('tavern.jpg'), linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
     min-height: 100vh;
     display: flex;
     justify-content: center;
@@ -16,10 +21,23 @@ body {
     image-rendering: pixelated;
     image-rendering: -moz-crisp-edges;
     image-rendering: crisp-edges;
+    position: relative;
+}
+
+/* Dark overlay to ensure game content is readable over the tavern image */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: -1;
 }
 
 .game-container {
-    background: #2a2a2a;
+    background: rgba(42, 42, 42, 0.95); /* Semi-transparent to show tavern slightly */
     border: 4px solid #000;
     border-radius: 0;
     padding: 30px;
@@ -30,6 +48,10 @@ body {
     max-width: 600px;
     width: 90%;
     text-align: center;
+    backdrop-filter: blur(5px); /* Adds a blur effect behind the container */
+    -webkit-backdrop-filter: blur(5px); /* Safari support */
+    position: relative;
+    z-index: 1;
 }
 
 .game-title {
@@ -454,7 +476,7 @@ body {
 }
 
 .modal-content {
-    background: #2a2a2a;
+    background: rgba(42, 42, 42, 0.98);
     border: 4px solid #ffd700;
     padding: 30px;
     max-width: 600px;
@@ -462,6 +484,8 @@ body {
     max-height: 80vh;
     overflow-y: auto;
     box-shadow: 0 0 50px rgba(255, 215, 0, 0.3);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
 }
 
 .modal-title {
@@ -786,7 +810,7 @@ body {
 
 /* Item Shop Styles */
 .shop-content {
-    background: #2a2a2a;
+    background: rgba(42, 42, 42, 0.98);
     border: 4px solid #00ffff;
     padding: 20px;
     max-width: 800px;
@@ -794,6 +818,8 @@ body {
     max-height: 90vh;
     overflow-y: auto;
     box-shadow: 0 0 50px rgba(0, 255, 255, 0.3);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
 }
 
 .shop-title {
@@ -1085,7 +1111,7 @@ body {
 
 /* Battle Mode Styles */
 .battle-content {
-    background: #2a2a2a;
+    background: rgba(42, 42, 42, 0.98);
     border: 4px solid #ff0000;
     padding: 20px;
     max-width: 900px;
@@ -1094,6 +1120,8 @@ body {
     overflow-y: auto;
     box-shadow: 0 0 50px rgba(255, 0, 0, 0.5);
     position: relative;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
 }
 
 .battle-title {
@@ -1421,7 +1449,7 @@ body {
 }
 
 .workshop-content {
-    background: #2a2a2a;
+    background: rgba(42, 42, 42, 0.98);
     border: 4px solid #9c27b0;
     padding: 20px;
     max-width: 900px;
@@ -1429,6 +1457,8 @@ body {
     max-height: 90vh;
     overflow-y: auto;
     box-shadow: 0 0 50px rgba(156, 39, 176, 0.5);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
 }
 
 .workshop-title {
@@ -1852,10 +1882,12 @@ body {
 }
 
 .decision-content {
-    background: #2a2a2a;
+    background: rgba(42, 42, 42, 0.98);
     border: 3px solid #ff5722;
     padding: 30px;
     text-align: center;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
 }
 
 .decision-content h3 {
@@ -1874,7 +1906,58 @@ body {
     margin: 10px;
 }
 
+/* Responsive design for different screen sizes */
+@media (max-width: 1920px) {
+    body {
+        /* Ensure tavern image covers full screen on large displays */
+        background-size: cover;
+    }
+}
+
+@media (max-width: 1366px) {
+    body {
+        /* Adjust for laptop screens */
+        background-size: cover;
+        background-position: center center;
+    }
+}
+
+@media (max-width: 768px) {
+    body {
+        /* For tablets - ensure the image still covers but may crop */
+        background-size: cover;
+        background-position: center top;
+    }
+    
+    body::before {
+        /* Slightly darker overlay on tablets for better readability */
+        background: rgba(0, 0, 0, 0.5);
+    }
+    
+    .game-container {
+        background: rgba(42, 42, 42, 0.97);
+        width: 95%;
+        padding: 20px;
+    }
+}
+
 @media (max-width: 600px) {
+    body {
+        /* For mobile - prioritize content visibility */
+        background-size: cover;
+        background-position: center center;
+    }
+    
+    body::before {
+        /* Darker overlay on mobile for maximum readability */
+        background: rgba(0, 0, 0, 0.6);
+    }
+    
+    .game-container {
+        background: rgba(42, 42, 42, 0.98);
+        padding: 15px;
+    }
+    
     .game-title {
         font-size: 18px;
     }
@@ -1894,5 +1977,40 @@ body {
     
     #announcementText {
         font-size: 16px;
+    }
+}
+
+/* Ultra-wide screens */
+@media (min-width: 2560px) {
+    body {
+        /* For ultra-wide monitors, ensure image fills screen */
+        background-size: cover;
+        background-position: center center;
+    }
+    
+    .game-container {
+        max-width: 700px;
+        padding: 40px;
+    }
+}
+
+/* Portrait orientation adjustments */
+@media (orientation: portrait) and (max-width: 600px) {
+    body {
+        background-size: auto 100vh;
+        background-position: center center;
+    }
+}
+
+/* Landscape orientation adjustments */
+@media (orientation: landscape) and (max-height: 600px) {
+    body {
+        background-size: 100vw auto;
+        background-position: center center;
+    }
+    
+    .game-container {
+        max-height: 90vh;
+        overflow-y: auto;
     }
 }
