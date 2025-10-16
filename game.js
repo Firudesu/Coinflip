@@ -108,7 +108,9 @@ class CoinFlipGame {
         // Choice buttons - clicking immediately flips the coin or triggers battle
         document.querySelectorAll('.choice-btn').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                if (!this.isFlipping) {
+                console.log('Button clicked, isFlipping:', this.isFlipping, 'eventActive:', this.eventActive);
+                
+                if (!this.isFlipping && !this.eventActive) {
                     this.playerChoice = e.target.closest('.choice-btn').dataset.choice;
                     this.highlightChoice(this.playerChoice);
                     
@@ -124,6 +126,8 @@ class CoinFlipGame {
                         // Normal flip
                         this.flipCoin();
                     }
+                } else {
+                    console.log('Click blocked - isFlipping:', this.isFlipping, 'eventActive:', this.eventActive);
                 }
             });
         });
@@ -143,6 +147,12 @@ class CoinFlipGame {
         // Reset button
         document.getElementById('resetBtn').addEventListener('click', () => {
             this.resetGame();
+        });
+        
+        // Emergency reset on double-click
+        document.getElementById('resetBtn').addEventListener('dblclick', () => {
+            this.forceResetGameState();
+            this.showMessage('EMERGENCY RESET PERFORMED!');
         });
         
         // Hall of Fame button
@@ -199,7 +209,16 @@ class CoinFlipGame {
     }
     
     flipCoin() {
-        if (this.isFlipping) return;
+        if (this.isFlipping) {
+            console.log('Flip blocked - already flipping');
+            return;
+        }
+        
+        // Clear any existing animation
+        if (this.flipAnimation) {
+            clearInterval(this.flipAnimation);
+            this.flipAnimation = null;
+        }
         
         // Check for random event before flip
         try {
@@ -545,9 +564,9 @@ class CoinFlipGame {
                 const reflipChance = this.workshopUpgrades.secondChance.level * 0.05;
                 if (Math.random() < reflipChance) {
                     this.showMessage('SECOND CHANCE! REFLIPPING...');
-                    // Trigger another flip automatically
+                    // Reset state and trigger another flip
                     setTimeout(() => {
-                        this.flipCoin();
+                        this.forceResetGameState();
                     }, 1000);
                     return;
                 }
@@ -567,6 +586,7 @@ class CoinFlipGame {
             if (streakSaved) {
                 this.updateDisplay();
                 this.updateCoinEffects();
+                setTimeout(() => this.forceResetGameState(), 2000);
                 return; // Don't continue with normal loss
             }
             
@@ -651,22 +671,7 @@ class CoinFlipGame {
         this.updateDisplay();
         
         // Reset for next round
-        setTimeout(() => {
-            this.isFlipping = false;
-            this.playerChoice = null;
-            this.canvas.classList.remove('flipping', 'disabled');
-            document.getElementById('choiceContainer').classList.remove('hidden');
-            document.querySelectorAll('.choice-btn').forEach(btn => {
-                btn.classList.remove('selected');
-            });
-            
-            // Clean up event effects if any
-            if (this.cleanupEventEffects) {
-                this.cleanupEventEffects();
-            }
-            
-            this.showMessage('CLICK HEADS OR TAILS TO FLIP!');
-        }, 2000);
+        this.resetForNextRound();
     }
     
     drawCoin(isFlipping = false) {
@@ -1995,6 +2000,47 @@ Play at: ${window.location.href}`;
         this.saveInventory();
         this.showMessage(`UNEQUIPPED ${item.name.toUpperCase()}!`);
         this.updateShopDisplay();
+    }
+    
+    // Reset game state for next round
+    resetForNextRound() {
+        setTimeout(() => {
+            this.forceResetGameState();
+        }, 2000);
+    }
+    
+    // Force reset game state immediately
+    forceResetGameState() {
+        // Clear any running animations
+        if (this.flipAnimation) {
+            clearInterval(this.flipAnimation);
+            this.flipAnimation = null;
+        }
+        
+        this.isFlipping = false;
+        this.playerChoice = null;
+        this.eventActive = false;
+        this.currentEvent = null;
+        
+        // Reset coin visual state
+        this.coinRotation = 0;
+        this.drawCoin();
+        
+        // Reset UI elements
+        this.canvas.classList.remove('flipping', 'disabled');
+        document.getElementById('choiceContainer').classList.remove('hidden');
+        document.querySelectorAll('.choice-btn').forEach(btn => {
+            btn.classList.remove('selected');
+            btn.disabled = false;
+        });
+        
+        // Clean up event effects if any
+        if (this.cleanupEventEffects) {
+            this.cleanupEventEffects();
+        }
+        
+        this.showMessage('CLICK HEADS OR TAILS TO FLIP!');
+        console.log('Game state force reset - isFlipping:', this.isFlipping);
     }
     
     // Process active event effects
