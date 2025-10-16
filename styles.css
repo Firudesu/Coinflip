@@ -2070,3 +2070,9 @@ body {
     0% { box-shadow: 0 0 5px rgba(255, 152, 0, 0.5); }
     100% { box-shadow: 0 0 15px rgba(255, 193, 7, 0.8); }
 }
+
+/* Workshop token display */
+.workshop-currency .currency-value {
+    color: #ffc107;
+    text-shadow: 0 0 10px rgba(255, 193, 7, 0.5);
+}

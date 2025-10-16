@@ -88,6 +88,7 @@ class CoinFlipGame {
         // Initialize game state
         this.riskTakerBonus = 0;
         this.bondMultiplier = 0;
+        this.bankProtection = parseInt(localStorage.getItem('bankProtection') || '0');
         
         // Update title based on best streak
         this.updatePlayerTitle();
@@ -217,9 +218,15 @@ class CoinFlipGame {
         // Determine result with item effects and upgrades
         let winChance = 0.5;
         
-        // Apply upgrade bonus
+        // Apply workshop upgrades
         if (this.getUpgradeBonus) {
             winChance += this.getUpgradeBonus('winChance');
+            
+            // Coin Soul: Each 50 total wins adds +0.5% permanent win chance
+            if (this.workshopUpgrades && this.workshopUpgrades.coinSoul.level > 0) {
+                const coinSoulBonus = Math.floor(this.totalWins / 50) * 0.005;
+                winChance += coinSoulBonus;
+            }
         }
         
         // Apply equipped item effects
@@ -331,7 +338,7 @@ class CoinFlipGame {
         this.lastTwoFlips = this.flipHistory.slice(-2);
         this.lastThreeFlips = this.flipHistory.slice(-3);
         
-        // Process durability loss for equipped items
+        // Process durability loss for equipped items (with workshop protection)
         this.processItemDurability();
         
         if (won) {
@@ -339,6 +346,11 @@ class CoinFlipGame {
             
             // Apply equipped item effects for multiplier growth
             let multiplierGrowth = 0.1;
+            
+            // Apply Momentum Engine workshop upgrade
+            if (this.workshopUpgrades && this.workshopUpgrades.momentumEngine.level > 0) {
+                multiplierGrowth += this.workshopUpgrades.momentumEngine.level * 0.02;
+            }
             
             this.equippedItems.forEach(item => {
                 if (!item || item.durability <= 0) return;
@@ -365,6 +377,36 @@ class CoinFlipGame {
             this.multiplier = 1.0 + (this.streak * multiplierGrowth) + (this.riskTakerBonus || 0) + (this.bondMultiplier || 0);
             
             let points = Math.round(this.basePoints * this.multiplier);
+            
+            // Apply workshop upgrades for points
+            if (this.workshopUpgrades) {
+                // Golden Edge: +1% chance to earn double coins on correct flip
+                if (this.workshopUpgrades.goldenEdge.level > 0) {
+                    const doubleChance = this.workshopUpgrades.goldenEdge.level * 0.01;
+                    if (Math.random() < doubleChance) {
+                        points *= 2;
+                        this.showMessage('GOLDEN EDGE! DOUBLE COINS!');
+                    }
+                }
+                
+                // Twin Toss: 2% chance to land double result
+                if (this.workshopUpgrades.twinToss.level > 0) {
+                    const twinChance = this.workshopUpgrades.twinToss.level * 0.02;
+                    if (Math.random() < twinChance) {
+                        points *= 2;
+                        this.showMessage('TWIN TOSS! DOUBLE RESULT!');
+                    }
+                }
+                
+                // Echo Flip: 2% chance that winning flip repeats instantly
+                if (this.workshopUpgrades.echoFlip.level > 0) {
+                    const echoChance = this.workshopUpgrades.echoFlip.level * 0.02;
+                    if (Math.random() < echoChance) {
+                        points *= 2;
+                        this.showMessage('ECHO FLIP! INSTANT REPEAT!');
+                    }
+                }
+            }
             
             // Apply equipped item effects for points
             this.equippedItems.forEach(item => {
@@ -413,6 +455,21 @@ class CoinFlipGame {
             // Check achievements
             this.checkAchievements();
             
+            // Check token milestones and workshop unlock
+            if (this.checkTokenMilestones) {
+                this.checkTokenMilestones();
+            }
+            if (this.checkWorkshopUnlock) {
+                this.checkWorkshopUnlock();
+            }
+            if (this.updateWorkshopTier) {
+                this.updateWorkshopTier();
+            }
+            
+            // Track total wins for Coin Soul upgrade
+            this.totalWins++;
+            localStorage.setItem('totalWins', this.totalWins);
+            
             // Update coin effects based on streak
             this.updateCoinEffects();
             
@@ -426,10 +483,17 @@ class CoinFlipGame {
             const lostScore = this.score;
             const lostStreak = this.streak;
             
-            // Check streak saver upgrade
-            if (this.getUpgradeBonus && Math.random() < this.getUpgradeBonus('streakSaver')) {
-                this.showMessage('STREAK SAVED BY UPGRADE!');
-                return; // Don't lose!
+            // Check for Second Chance workshop upgrade
+            if (this.workshopUpgrades && this.workshopUpgrades.secondChance.level > 0) {
+                const reflipChance = this.workshopUpgrades.secondChance.level * 0.05;
+                if (Math.random() < reflipChance) {
+                    this.showMessage('SECOND CHANCE! REFLIPPING...');
+                    // Trigger another flip automatically
+                    setTimeout(() => {
+                        this.flipCoin();
+                    }, 1000);
+                    return;
+                }
             }
             
             // Apply equipped item streak save effects
@@ -502,8 +566,8 @@ class CoinFlipGame {
             this.disableFireMode();
             this.updateCoinEffects();
             
-            // Check multiplier guard upgrade
-            const keepMultiplier = this.getUpgradeBonus && Math.random() < this.getUpgradeBonus('multiplierGuard');
+            // Check Safety Net workshop upgrade
+            const keepMultiplier = this.workshopUpgrades && this.workshopUpgrades.safetyNet.level > 0;
             
             // Reset score, streak, and multiplier on loss
             this.score = 0;
@@ -513,8 +577,9 @@ class CoinFlipGame {
             this.riskTakerBonus = 0;
             
             if (keepMultiplier) {
-                this.showMessage('MULTIPLIER PROTECTED!');
-                // Keep current multiplier
+                this.showMessage('SAFETY NET! KEEPING HALF MULTIPLIER!');
+                // Keep half multiplier
+                this.multiplier = 1.0 + ((this.multiplier - 1.0) * 0.5);
             } else {
                 this.multiplier = 1.0;
             }
@@ -816,6 +881,15 @@ class CoinFlipGame {
             // Add score to bank with potential boost
             let bankedAmount = this.score;
             const bankedStreak = this.streak;
+            
+            // Apply workshop banking upgrades
+            if (this.workshopUpgrades && this.workshopUpgrades.bankShield.level > 0) {
+                const protectionAmount = Math.floor(bankedAmount * this.workshopUpgrades.bankShield.level * 0.05);
+                if (!this.bankProtection) this.bankProtection = 0;
+                this.bankProtection += protectionAmount;
+                localStorage.setItem('bankProtection', this.bankProtection);
+                this.showMessage(`BANK SHIELD! ${protectionAmount} COINS PROTECTED!`);
+            }
             
             // Apply equipped item banking effects
             this.equippedItems.forEach(item => {
@@ -1437,34 +1511,6 @@ Play at: ${window.location.href}`;
     defineShopItems() {
         return [
             {
-                id: 'lucky_charm',
-                name: 'Lucky Charm',
-                icon: '🍀',
-                description: '+2% win chance',
-                rarity: 'common',
-                price: 500,
-                durability: 100,
-                maxDurability: 100,
-                durabilityLossChance: 0.01,
-                effect: 'winChance',
-                value: 0.02,
-                repairCost: () => Math.floor(500 * 0.25)
-            },
-            {
-                id: 'streak_booster',
-                name: 'Streak Booster',
-                icon: '📈',
-                description: '+0.05 multiplier gain per correct flip',
-                rarity: 'common',
-                price: 800,
-                durability: 100,
-                maxDurability: 100,
-                durabilityLossChance: 0.01,
-                effect: 'multiplierGain',
-                value: 0.05,
-                repairCost: () => Math.floor(800 * 0.25)
-            },
-            {
                 id: 'coin_saver',
                 name: 'Coin Saver',
                 icon: '🛡️',
@@ -1505,20 +1551,6 @@ Play at: ${window.location.href}`;
                 effect: 'doubleReward',
                 value: 2,
                 repairCost: () => Math.floor(2500 * 0.45)
-            },
-            {
-                id: 'bank_magnet',
-                name: 'Bank Magnet',
-                icon: '🧲',
-                description: '+10% bank value when cashing out',
-                rarity: 'common',
-                price: 1000,
-                durability: 100,
-                maxDurability: 100,
-                durabilityLossChance: 0.01,
-                effect: 'bankBonus',
-                value: 0.10,
-                repairCost: () => Math.floor(1000 * 0.25)
             },
             {
                 id: 'hot_hand',
@@ -1936,8 +1968,25 @@ Play at: ${window.location.href}`;
         this.equippedItems.forEach(item => {
             if (!item || item.durability <= 0) return;
             
+            // Apply workshop upgrades for durability protection
+            let durabilityLossChance = item.durabilityLossChance;
+            
+            // Fortune Memory: 2% chance on flip to prevent item durability loss
+            if (this.workshopUpgrades && this.workshopUpgrades.fortuneMemory.level > 0) {
+                const preventChance = this.workshopUpgrades.fortuneMemory.level * 0.02;
+                if (Math.random() < preventChance) {
+                    return; // Skip durability loss for this item
+                }
+            }
+            
+            // Reinforced Alloy: Reduces item durability loss chance by 15% per level
+            if (this.workshopUpgrades && this.workshopUpgrades.reinforcedAlloy.level > 0) {
+                const reduction = this.workshopUpgrades.reinforcedAlloy.level * 0.15;
+                durabilityLossChance *= (1 - reduction);
+            }
+            
             // Check if durability should be lost this flip
-            if (Math.random() < item.durabilityLossChance) {
+            if (Math.random() < durabilityLossChance) {
                 const loss = Math.floor(Math.random() * 3) + 1; // 1-3% loss
                 item.durability = Math.max(0, item.durability - loss);
                 
@@ -1945,6 +1994,15 @@ Play at: ${window.location.href}`;
                     this.showMessage(`${item.name.toUpperCase()} BROKE! REPAIR IT!`);
                 } else if (item.durability <= 25) {
                     this.showMessage(`${item.name.toUpperCase()} IS WEARING OUT!`);
+                }
+            }
+            
+            // Restoration Circuit: 10% chance to repair 1 durability point after each win streak
+            if (this.workshopUpgrades && this.workshopUpgrades.restorationCircuit.level > 0 && this.streak > 0) {
+                const repairChance = this.workshopUpgrades.restorationCircuit.level * 0.10;
+                if (Math.random() < repairChance && item.durability < item.maxDurability) {
+                    item.durability = Math.min(item.maxDurability, item.durability + 1);
+                    this.showMessage(`${item.name.toUpperCase()} SELF-REPAIRED!`);
                 }
             }
         });
