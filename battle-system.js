@@ -319,6 +319,14 @@ CoinFlipGame.prototype.setupBattleListeners = function() {
             this.openBattleMode();
         });
     }
+    
+    // Static start battle button
+    const finalStartBtn = document.getElementById('finalStartBattleBtn');
+    if (finalStartBtn) {
+        finalStartBtn.addEventListener('click', () => {
+            this.startCoinBattle();
+        });
+    }
 };
 
 // Check if battle should be available (every 5 wins)
@@ -553,18 +561,11 @@ CoinFlipGame.prototype.finalizeOpponentSelection = function(isBoss) {
         document.getElementById('battleModal').classList.remove('boss-battle');
     }
     
-    // Show start battle button
+    // Show start battle button (use existing static button)
     setTimeout(() => {
-        // Double-check no button exists before creating
-        if (!document.getElementById('finalStartBattleBtn')) {
-            const startBtn = document.createElement('button');
-            startBtn.className = 'pixel-btn start-battle-btn';
-            startBtn.textContent = 'START COIN BATTLE!';
-            startBtn.id = 'finalStartBattleBtn';
-            startBtn.addEventListener('click', () => {
-                this.startCoinBattle();
-            });
-            document.getElementById('opponentSection').appendChild(startBtn);
+        const startBtn = document.getElementById('finalStartBattleBtn');
+        if (startBtn) {
+            startBtn.style.display = 'block';
         }
     }, 1000);
 };
@@ -573,9 +574,11 @@ CoinFlipGame.prototype.finalizeOpponentSelection = function(isBoss) {
 CoinFlipGame.prototype.cleanupOpponentSection = function() {
     const opponentSection = document.getElementById('opponentSection');
     
-    // Remove any existing start battle buttons
-    const existingButtons = opponentSection.querySelectorAll('.start-battle-btn, #finalStartBattleBtn');
-    existingButtons.forEach(btn => btn.remove());
+    // Hide the start battle button
+    const startBtn = document.getElementById('finalStartBattleBtn');
+    if (startBtn) {
+        startBtn.style.display = 'none';
+    }
     
     // Remove any existing boss special rules
     const existingRules = opponentSection.querySelectorAll('.boss-special-rule');

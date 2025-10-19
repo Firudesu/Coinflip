@@ -489,24 +489,28 @@ body {
     position: fixed;
     top: 0;
     left: 0;
-    width: 100%;
-    height: 100%;
+    width: 100vw;
+    height: 100vh;
     background: rgba(0, 0, 0, 0.9);
     z-index: 3000;
     animation: fadeIn 0.3s;
+    overflow: hidden;
 }
 
 .modal.show {
     display: flex;
     justify-content: center;
     align-items: center;
+    overflow: hidden;
 }
 
 .modal-content {
     background: #2a2a2a;
     border: 4px solid #ffd700;
     padding: 30px;
-    max-width: 600px;
+    max-width: 90vw;
+    width: 100%;
+    box-sizing: border-box;
     width: 90%;
     max-height: 80vh;
     overflow-y: auto;
@@ -2032,11 +2036,13 @@ body {
 .battle-arena {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     padding: 20px;
     background: rgba(20, 20, 20, 0.8);
     border: 2px solid #333;
     margin-bottom: 15px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .battle-participant {
@@ -2086,6 +2092,10 @@ body {
 .battle-center {
     flex: 0 0 200px;
     text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
 }
 
 .vs-symbol {
@@ -2212,6 +2222,34 @@ body {
     100% { border-color: #6ee5d8; }
 }
 
+/* Start Battle Button Container */
+.start-battle-container {
+    text-align: center;
+    margin: 20px 0;
+    width: 100%;
+}
+
+.start-battle-btn {
+    margin: 0 auto;
+}
+
+/* Modal Width Fix */
+.battle-content, .modal-content, .shop-content, .workshop-content {
+    max-width: 90vw;
+    width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
+}
+
+/* Prevent horizontal scrolling */
+.modal {
+    overflow-x: hidden;
+}
+
+body {
+    overflow-x: hidden;
+}
+
 /* Responsive adjustments for battle system */
 @media (max-width: 768px) {
     .battle-arena {
@@ -2230,5 +2268,10 @@ body {
     
     .skill-description {
         font-size: 7px;
+    }
+    
+    .battle-content {
+        max-width: 95vw;
+        padding: 15px;
     }
 }
