@@ -293,6 +293,7 @@ CoinFlipGame.prototype.setupBattleListeners = function() {
     // Skip battle
     document.getElementById('skipBattleBtn').addEventListener('click', () => {
         document.getElementById('battleModal').classList.remove('show');
+        this.cleanupBattleModal();
     });
     
     // Battle choice buttons
@@ -308,6 +309,7 @@ CoinFlipGame.prototype.setupBattleListeners = function() {
     document.getElementById('closeBattleBtn').addEventListener('click', () => {
         document.getElementById('battleModal').classList.remove('show');
         this.battleMode.currentBattle = null;
+        this.cleanupBattleModal();
     });
     
     // Test battle button (temporary)
@@ -374,6 +376,10 @@ CoinFlipGame.prototype.showBattleAvailable = function(isBoss = false) {
 
 CoinFlipGame.prototype.openBattleMode = function() {
     const modal = document.getElementById('battleModal');
+    
+    // Clean up any previous battle state first
+    this.cleanupBattleModal();
+    
     modal.classList.add('show');
     
     // Update battle stats display
@@ -386,12 +392,6 @@ CoinFlipGame.prototype.openBattleMode = function() {
     // Update player info
     document.getElementById('playerBattleName').textContent = 'PLAYER';
     document.getElementById('playerBattleTitle').textContent = this.playerTitle || 'NOVICE';
-    
-    // Reset battle UI to skill selection
-    document.getElementById('skillSelectionSection').style.display = 'block';
-    document.getElementById('opponentSection').style.display = 'none';
-    document.getElementById('battlePhase').style.display = 'none';
-    document.getElementById('battleResult').style.display = 'none';
 };
 
 // New skill selection system
@@ -411,7 +411,7 @@ CoinFlipGame.prototype.startSkillSelection = function() {
 
 CoinFlipGame.prototype.displaySkillSelection = function() {
     const skillsContainer = document.getElementById('skillSelectionContainer');
-    skillsContainer.innerHTML = '';
+    skillsContainer.innerHTML = ''; // This clears any existing content
     
     // Create skill selection UI
     const title = document.createElement('h3');
@@ -538,6 +538,9 @@ CoinFlipGame.prototype.finalizeOpponentSelection = function(isBoss) {
     document.getElementById('opponentName').textContent = selectedOpponent.name;
     document.getElementById('opponentDesc').textContent = selectedOpponent.description;
     
+    // Clean up any existing dynamic elements first
+    this.cleanupOpponentSection();
+    
     // Add boss battle styling if needed
     if (isBoss) {
         document.getElementById('battleModal').classList.add('boss-battle');
@@ -552,15 +555,58 @@ CoinFlipGame.prototype.finalizeOpponentSelection = function(isBoss) {
     
     // Show start battle button
     setTimeout(() => {
-        const startBtn = document.createElement('button');
-        startBtn.className = 'pixel-btn start-battle-btn';
-        startBtn.textContent = 'START COIN BATTLE!';
-        startBtn.id = 'finalStartBattleBtn';
-        startBtn.addEventListener('click', () => {
-            this.startCoinBattle();
-        });
-        document.getElementById('opponentSection').appendChild(startBtn);
+        // Double-check no button exists before creating
+        if (!document.getElementById('finalStartBattleBtn')) {
+            const startBtn = document.createElement('button');
+            startBtn.className = 'pixel-btn start-battle-btn';
+            startBtn.textContent = 'START COIN BATTLE!';
+            startBtn.id = 'finalStartBattleBtn';
+            startBtn.addEventListener('click', () => {
+                this.startCoinBattle();
+            });
+            document.getElementById('opponentSection').appendChild(startBtn);
+        }
     }, 1000);
+};
+
+// Helper function to clean up dynamically created elements in opponent section
+CoinFlipGame.prototype.cleanupOpponentSection = function() {
+    const opponentSection = document.getElementById('opponentSection');
+    
+    // Remove any existing start battle buttons
+    const existingButtons = opponentSection.querySelectorAll('.start-battle-btn, #finalStartBattleBtn');
+    existingButtons.forEach(btn => btn.remove());
+    
+    // Remove any existing boss special rules
+    const existingRules = opponentSection.querySelectorAll('.boss-special-rule');
+    existingRules.forEach(rule => rule.remove());
+};
+
+// Helper function to clean up the entire battle modal
+CoinFlipGame.prototype.cleanupBattleModal = function() {
+    // Clean up opponent section
+    this.cleanupOpponentSection();
+    
+    // Clean up skill selection container
+    const skillsContainer = document.getElementById('skillSelectionContainer');
+    if (skillsContainer) {
+        skillsContainer.innerHTML = '';
+    }
+    
+    // Reset battle mode state
+    this.battleMode.selectedSkills = [];
+    this.battleMode.availableSkills = [];
+    this.battleMode.currentBattle = null;
+    this.battleMode.battleInProgress = false;
+    
+    // Reset UI sections visibility
+    document.getElementById('skillSelectionSection').style.display = 'block';
+    document.getElementById('opponentSection').style.display = 'none';
+    document.getElementById('battlePhase').style.display = 'none';
+    document.getElementById('battleResult').style.display = 'none';
+    
+    // Remove boss battle styling
+    document.getElementById('battleModal').classList.remove('boss-battle');
 };
 
 CoinFlipGame.prototype.startCoinBattle = function() {
