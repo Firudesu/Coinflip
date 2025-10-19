@@ -80,6 +80,11 @@
             <button class="pixel-btn workshop-btn" id="workshopBtn">WORKSHOP</button>
             <button class="pixel-btn share-btn" id="shareBtn">SHARE STREAK</button>
         </div>
+        
+        <!-- Temporary test button -->
+        <div class="button-row" style="margin-top: 10px;">
+            <button class="pixel-btn" id="testBattleBtn" style="background: #ff6b6b;">TEST BATTLE SYSTEM</button>
+        </div>
     </div>
     
     <!-- Streak Announcement Overlay -->
@@ -205,15 +210,22 @@
     <div class="modal" id="battleModal">
         <div class="battle-content">
             <div class="battle-header">
-                <h2 class="battle-title">BATTLE MODE</h2>
+                <h2 class="battle-title">COIN BATTLE ARENA</h2>
                 <div class="battle-stats">
                     <span class="battle-wins">WINS: <span id="battleWins">0</span></span>
                     <span class="boss-defeats">BOSSES: <span id="bossDefeats">0</span></span>
                 </div>
             </div>
             
+            <!-- Skill Selection Phase -->
+            <div class="skill-selection-section" id="skillSelectionSection">
+                <div id="skillSelectionContainer">
+                    <!-- Skills will be dynamically populated -->
+                </div>
+            </div>
+            
             <!-- Opponent Selection -->
-            <div class="opponent-section" id="opponentSection">
+            <div class="opponent-section" id="opponentSection" style="display: none;">
                 <div class="opponent-portrait">
                     <div class="portrait-frame">
                         <span class="opponent-avatar" id="opponentAvatar">👤</span>
@@ -233,45 +245,52 @@
                     <div class="player-info">
                         <h3 class="player-battle-name" id="playerBattleName">PLAYER</h3>
                         <p class="player-battle-title" id="playerBattleTitle">TITLE</p>
+                        <div class="player-skills" id="playerSkills">
+                            <!-- Selected skills will be shown here -->
+                        </div>
                     </div>
                 </div>
-            </div>
-            
-            <!-- Wager Phase -->
-            <div class="wager-section" id="wagerSection">
-                <h3 class="wager-title">PLACE YOUR WAGER</h3>
-                <div class="wager-controls">
-                    <input type="range" id="wagerSlider" min="10" max="100" value="50" step="10">
-                    <div class="wager-display">
-                        <span class="wager-amount" id="wagerAmount">50</span>
-                        <span class="wager-currency">🪙</span>
-                    </div>
-                </div>
-                <div class="pot-info">
-                    <span>TOTAL POT: </span>
-                    <span class="pot-amount" id="potAmount">100</span>
-                </div>
-                <button class="pixel-btn start-battle-btn" id="startBattleBtn">START BATTLE!</button>
             </div>
             
             <!-- Battle Phase -->
             <div class="battle-phase" id="battlePhase" style="display: none;">
-                <div class="battle-scores">
-                    <div class="battle-score player-score">
-                        <span class="score-label">YOUR STREAK</span>
-                        <span class="score-value" id="playerBattleStreak">0</span>
+                <div class="battle-arena">
+                    <div class="battle-participant player-side">
+                        <div class="participant-info">
+                            <span class="participant-icon">🎮</span>
+                            <span class="participant-name">PLAYER</span>
+                        </div>
+                        <div class="participant-skills" id="playerBattleSkills">
+                            <!-- Player skills displayed here -->
+                        </div>
+                        <div class="participant-streak">
+                            <span class="streak-label">STREAK</span>
+                            <span class="streak-value" id="playerBattleStreak">0</span>
+                        </div>
                     </div>
-                    <div class="battle-score opponent-score">
-                        <span class="score-label">OPPONENT STREAK</span>
-                        <span class="score-value" id="opponentBattleStreak">0</span>
+                    
+                    <div class="battle-center">
+                        <div class="vs-symbol">VS</div>
+                        <canvas id="battleCoinCanvas" width="120" height="120"></canvas>
+                        <div class="battle-controls" id="battleControls">
+                            <button class="pixel-btn battle-choice" data-choice="heads">HEADS</button>
+                            <button class="pixel-btn battle-choice" data-choice="tails">TAILS</button>
+                        </div>
                     </div>
-                </div>
-                
-                <canvas id="battleCoinCanvas" width="150" height="150"></canvas>
-                
-                <div class="battle-controls" id="battleControls">
-                    <button class="pixel-btn battle-choice" data-choice="heads">HEADS</button>
-                    <button class="pixel-btn battle-choice" data-choice="tails">TAILS</button>
+                    
+                    <div class="battle-participant opponent-side">
+                        <div class="participant-info">
+                            <span class="participant-icon" id="opponentBattleAvatar">👤</span>
+                            <span class="participant-name" id="opponentBattleName">OPPONENT</span>
+                        </div>
+                        <div class="participant-effects" id="opponentBattleEffects">
+                            <!-- Opponent effects displayed here -->
+                        </div>
+                        <div class="participant-streak">
+                            <span class="streak-label">STREAK</span>
+                            <span class="streak-value" id="opponentBattleStreak">0</span>
+                        </div>
+                    </div>
                 </div>
                 
                 <div class="battle-message" id="battleMessage">MAKE YOUR CHOICE!</div>
