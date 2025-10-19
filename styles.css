@@ -2046,8 +2046,10 @@ body {
 }
 
 .battle-participant {
-    flex: 1;
+    flex: 1 1 0;
     text-align: center;
+    min-width: 0;
+    max-width: calc(50% - 100px);
 }
 
 .participant-info {

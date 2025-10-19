@@ -622,6 +622,8 @@ CoinFlipGame.prototype.startCoinBattle = function() {
         opponentWinChance: this.battleMode.currentOpponent.baseWinChance,
         playerConsecutiveWins: 0,
         opponentConsecutiveWins: 0,
+        playerHadTurn: false,
+        opponentHadTurn: false,
         skillEffects: {
             momentum: 0,
             reverseFateUsed: false,
@@ -777,11 +779,20 @@ CoinFlipGame.prototype.makeBattleChoice = function(choice) {
         document.getElementById('battleMessage').textContent = `WRONG! YOUR FINAL STREAK: ${battle.playerStreak}`;
         battle.playerTurn = false;
         battle.playerConsecutiveWins = 0;
+        battle.playerHadTurn = true;
         
-        // Start opponent turn after delay
-        setTimeout(() => {
-            this.startOpponentTurn();
-        }, 2000);
+        // Check if opponent already had their turn
+        if (battle.opponentHadTurn) {
+            // Both players have had their turn, determine winner
+            setTimeout(() => {
+                this.determineBattleWinner();
+            }, 2000);
+        } else {
+            // Start opponent turn
+            setTimeout(() => {
+                this.startOpponentTurn();
+            }, 2000);
+        }
     }
 };
 
@@ -952,13 +963,23 @@ CoinFlipGame.prototype.simulateOpponentFlips = function() {
             this.applySkillsOnOpponentWin();
             
         } else {
-            // Opponent loses, battle ends
+            // Opponent loses, their turn ends
             clearInterval(flipInterval);
             document.getElementById('battleMessage').textContent = `${opponent.name.toUpperCase()} FINAL STREAK: ${battle.opponentStreak}`;
+            battle.opponentHadTurn = true;
             
-            setTimeout(() => {
-                this.determineBattleWinner();
-            }, 2000);
+            // Check if player already had their turn
+            if (battle.playerHadTurn) {
+                // Both players have had their turn, determine winner
+                setTimeout(() => {
+                    this.determineBattleWinner();
+                }, 2000);
+            } else {
+                // Switch to player turn
+                setTimeout(() => {
+                    this.startPlayerTurn();
+                }, 2000);
+            }
         }
     }, 1000);
 };
@@ -1061,6 +1082,20 @@ CoinFlipGame.prototype.applyOpponentSpecialAbilities = function() {
 CoinFlipGame.prototype.applySkillsOnOpponentWin = function() {
     // Currently no skills trigger specifically on opponent wins
     // This is a placeholder for future skills
+};
+
+CoinFlipGame.prototype.startPlayerTurn = function() {
+    const battle = this.battleMode.currentBattle;
+    
+    // Set player turn
+    battle.playerTurn = true;
+    
+    // Re-enable player controls
+    document.querySelectorAll('.battle-choice').forEach(btn => {
+        btn.disabled = false;
+    });
+    
+    document.getElementById('battleMessage').textContent = 'YOUR TURN - FLIP UNTIL YOU LOSE!';
 };
 
 CoinFlipGame.prototype.determineBattleWinner = function() {
