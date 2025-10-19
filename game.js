@@ -807,6 +807,11 @@ class CoinFlipGame {
             this.bank += bankedAmount;
             localStorage.setItem('bank', this.bank);
             
+            // Check for battle trigger after banking
+            if (this.checkBattleTrigger) {
+                this.checkBattleTrigger();
+            }
+            
             // Check for epic bank celebration
             if (bankedStreak >= 10) {
                 this.triggerEpicBankCelebration(bankedStreak, bankedAmount);
