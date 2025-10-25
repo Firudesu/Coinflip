@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coin Flip Test</title>
+    <style>
+        body {
+            font-family: 'Press Start 2P', monospace;
+            background: #222;
+            color: #fff;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 2px solid #444;
+            border-radius: 5px;
+        }
+        .test-button {
+            background: #4ecdc4;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 12px;
+        }
+        .test-button:hover {
+            background: #6ee5d8;
+        }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            background: #333;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Coin Flip Store System Test</h1>
+    
+    <div class="test-section">
+        <h2>Store Items Test</h2>
+        <p>Testing the new coin flip store items system...</p>
+        <button class="test-button" onclick="testStoreItems()">Test Store Items</button>
+        <div id="storeResult" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Item Effects Test</h2>
+        <p>Testing item effects and mechanics...</p>
+        <button class="test-button" onclick="testItemEffects()">Test Item Effects</button>
+        <div id="effectsResult" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Floating Text Test</h2>
+        <p>Testing floating text system...</p>
+        <button class="test-button" onclick="testFloatingText()">Test Floating Text</button>
+        <div id="floatingResult" class="result"></div>
+    </div>
+
+    <script>
+        // Mock game object for testing
+        const mockGame = {
+            shopItems: [],
+            activeEffects: {},
+            floatingTexts: [],
+            
+            init() {
+                this.shopItems = this.defineShopItems();
+                console.log('Store items initialized:', this.shopItems.length);
+            },
+            
+            defineShopItems() {
+                return [
+                    {
+                        id: 'lucky_coin',
+                        name: 'Lucky Coin',
+                        icon: '🪙',
+                        description: '+10% chance for coin to land on Heads',
+                        effect: 'Coin flip enhancement',
+                        price: 200,
+                        rarity: 'common',
+                        category: 'Basic',
+                        type: 'consumable',
+                        maxTier: 3,
+                        tier: 1,
+                        values: { heads_chance: [0.10, 0.20, 0.30] },
+                        flipCount: 25,
+                        uses: 1,
+                        apply: () => {
+                            console.log('Lucky Coin applied!');
+                            this.showFloatingText('✨ Lucky Coin Active!');
+                        }
+                    },
+                    {
+                        id: 'double_toss',
+                        name: 'Double Toss',
+                        icon: '🎲',
+                        description: 'Flips multiple coins - any Head = win',
+                        effect: 'Multi-coin flip',
+                        price: 350,
+                        rarity: 'uncommon',
+                        category: 'Basic',
+                        type: 'consumable',
+                        maxTier: 3,
+                        tier: 1,
+                        values: { coin_count: [2, 3, 4] },
+                        flipCount: 10,
+                        uses: 1,
+                        apply: () => {
+                            console.log('Double Toss applied!');
+                            this.showFloatingText('✨ Multi Flip Active!');
+                        }
+                    }
+                ];
+            },
+            
+            showFloatingText(text) {
+                const textElement = document.createElement('div');
+                textElement.textContent = text;
+                textElement.style.position = 'fixed';
+                textElement.style.left = '50%';
+                textElement.style.top = '50%';
+                textElement.style.fontFamily = '"Press Start 2P", monospace';
+                textElement.style.fontSize = '16px';
+                textElement.style.color = '#ffffff';
+                textElement.style.pointerEvents = 'none';
+                textElement.style.zIndex = '1000';
+                textElement.style.textShadow = '2px 2px 0px #000000';
+                textElement.style.transform = 'translate(-50%, -50%)';
+                textElement.style.animation = 'floatUp 2s ease-out forwards';
+                
+                document.body.appendChild(textElement);
+                
+                setTimeout(() => {
+                    if (textElement.parentNode) {
+                        textElement.parentNode.removeChild(textElement);
+                    }
+                }, 2000);
+            }
+        };
+        
+        function testStoreItems() {
+            mockGame.init();
+            const result = document.getElementById('storeResult');
+            result.innerHTML = `
+                <h3>Store Items Loaded:</h3>
+                <p>Total items: ${mockGame.shopItems.length}</p>
+                <ul>
+                    ${mockGame.shopItems.map(item => `<li>${item.icon} ${item.name} - ${item.description}</li>`).join('')}
+                </ul>
+            `;
+        }
+        
+        function testItemEffects() {
+            const result = document.getElementById('effectsResult');
+            result.innerHTML = '<h3>Testing Item Effects...</h3>';
+            
+            // Test Lucky Coin
+            const luckyCoin = mockGame.shopItems.find(item => item.id === 'lucky_coin');
+            if (luckyCoin) {
+                luckyCoin.apply();
+                result.innerHTML += '<p>✅ Lucky Coin effect applied successfully</p>';
+            }
+            
+            // Test Double Toss
+            const doubleToss = mockGame.shopItems.find(item => item.id === 'double_toss');
+            if (doubleToss) {
+                doubleToss.apply();
+                result.innerHTML += '<p>✅ Double Toss effect applied successfully</p>';
+            }
+        }
+        
+        function testFloatingText() {
+            const result = document.getElementById('floatingResult');
+            result.innerHTML = '<h3>Testing Floating Text...</h3>';
+            
+            mockGame.showFloatingText('✨ Test Floating Text!');
+            result.innerHTML += '<p>✅ Floating text displayed (check center of screen)</p>';
+        }
+        
+        // Initialize on load
+        window.addEventListener('load', () => {
+            mockGame.init();
+        });
+    </script>
+    
+    <style>
+        @keyframes floatUp {
+            0% {
+                opacity: 1;
+                transform: translate(-50%, -50%) translateY(0);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -50%) translateY(-100px);
+            }
+        }
+    </style>
+</body>
+</html>

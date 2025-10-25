@@ -32,6 +32,7 @@ class CoinFlipGame {
         this.lastShopStreak = 0;
         this.activeEffects = {}; // Track active item effects
         this.shopItems = this.defineShopItems();
+        this.floatingTexts = []; // Track floating text effects
         
         // Titles based on best streak
         this.titles = [
@@ -72,6 +73,9 @@ class CoinFlipGame {
         
         // Set up event listeners
         this.setupEventListeners();
+        
+        // Start floating text update loop
+        this.startFloatingTextLoop();
         
         // Draw initial coin
         this.drawCoin();
@@ -201,44 +205,8 @@ class CoinFlipGame {
         this.canvas.classList.add('flipping', 'disabled');
         document.getElementById('choiceContainer').classList.add('hidden');
         
-        // Determine result with item effects and upgrades
-        let winChance = 0.5;
-        
-        // Apply upgrade bonus
-        if (this.getUpgradeBonus) {
-            winChance += this.getUpgradeBonus('winChance');
-        }
-        
-        // Apply prediction buff
-        if (this.activeEffects.predictionBuff) {
-            winChance += this.activeEffects.predictionBuff;
-        }
-        
-        // Apply steady core
-        if (this.activeEffects.steadyCore) {
-            winChance += 0.08;
-        }
-        
-        // Apply edge bias
-        if (this.activeEffects.edgeBias) {
-            const edgeBiasTier = Math.min(this.activeEffects.edgeBias, 4);
-            const edgeBiasValues = [0.01, 0.02, 0.03, 0.05];
-            winChance += edgeBiasValues[edgeBiasTier - 1];
-        }
-        
-        // Apply coin of paradox
-        if (this.activeEffects.coinParadox) {
-            winChance += 0.08;
-        }
-        
-        // Apply lucky charm (guaranteed win)
-        if (this.activeEffects.luckyCharm) {
-            winChance = 1;
-            this.activeEffects.luckyCharm = false;
-        }
-        
-        let result = Math.random() < winChance ? this.playerChoice : 
-                     (this.playerChoice === 'heads' ? 'tails' : 'heads');
+        // Determine result with new coin flip system
+        let result = this.determineFlipResult();
         
         const willLose = result !== this.playerChoice;
         const isEpicMoment = this.streak >= 10 && willLose;
@@ -311,6 +279,29 @@ class CoinFlipGame {
     }
     
     handleResult(result) {
+        // Handle side landing first
+        if (result === 'side') {
+            this.showResult('SIDE LAND!', true);
+            this.showMessage('INCREDIBLE! COIN LANDED ON ITS SIDE!');
+            this.celebrateWin();
+            this.updateDisplay();
+            this.updateCoinEffects();
+            this.decrementItemEffects();
+            
+            // Reset for next round
+            setTimeout(() => {
+                this.isFlipping = false;
+                this.playerChoice = null;
+                this.canvas.classList.remove('flipping', 'disabled');
+                document.getElementById('choiceContainer').classList.remove('hidden');
+                document.querySelectorAll('.choice-btn').forEach(btn => {
+                    btn.classList.remove('selected');
+                });
+                this.showMessage('CLICK HEADS OR TAILS TO FLIP!');
+            }, 2000);
+            return;
+        }
+
         const won = result === this.playerChoice;
         
         // Process active event if any
@@ -323,38 +314,77 @@ class CoinFlipGame {
         if (won) {
             this.streak++;
             
-            // Apply greed gauge
-            let multiplierGrowth = 0.1;
-            if (this.activeEffects.greedGauge > 0) {
-                multiplierGrowth = 0.2;
-                this.activeEffects.greedGauge--;
+            // Apply Streak Booster
+            if (this.activeEffects.streakBooster) {
+                this.streak += this.activeEffects.streakBooster.streakBonus;
+                this.showFloatingText('+' + this.activeEffects.streakBooster.streakBonus + ' Streak!');
             }
             
-            // Apply greed engine
-            if (this.activeEffects.greedEngine) {
-                multiplierGrowth = 0.15;
+            // Apply Tail Chain (if result was tails)
+            if (this.activeEffects.tailChain && result === 'tails') {
+                this.activeEffects.tailChain.tailCount++;
+                this.multiplier += this.activeEffects.tailChain.multiplier;
+                this.showFloatingText('⚙️ Tail Chain +' + this.activeEffects.tailChain.multiplier + ' Multiplier!');
+            } else if (this.activeEffects.tailChain && result === 'heads') {
+                this.activeEffects.tailChain.tailCount = 0; // Reset tail chain
             }
             
-            // Apply double streak
-            if (this.activeEffects.doubleStreak) {
-                multiplierGrowth *= 2;
-            }
-            
-            // Apply coin of paradox
-            if (this.activeEffects.coinParadox) {
-                multiplierGrowth += 0.05;
-            }
-            
-            // Apply freeze multiplier
-            if (this.activeEffects.freezeMultiplier && this.activeEffects.freezeMultiplier.flips > 0) {
-                this.multiplier = this.activeEffects.freezeMultiplier.value;
-                this.activeEffects.freezeMultiplier.flips--;
-                if (this.activeEffects.freezeMultiplier.flips <= 0) {
-                    delete this.activeEffects.freezeMultiplier;
+            // Apply Coin Combo (two heads in a row)
+            if (this.activeEffects.coinCombo) {
+                if (this.activeEffects.coinCombo.lastFlip === 'heads' && result === 'heads') {
+                    this.multiplier += this.activeEffects.coinCombo.multiplier;
+                    this.showFloatingText('🔥 Combo x' + this.activeEffects.coinCombo.multiplier + ' Active!');
                 }
-            } else {
-                this.multiplier = 1.0 + (this.streak * multiplierGrowth);
+                this.activeEffects.coinCombo.lastFlip = result;
             }
+            
+            // Apply Jackpot Toss (3 consecutive same results)
+            if (this.activeEffects.jackpotToss) {
+                this.activeEffects.jackpotToss.lastFlips.push(result);
+                if (this.activeEffects.jackpotToss.lastFlips.length > 3) {
+                    this.activeEffects.jackpotToss.lastFlips.shift();
+                }
+                
+                if (this.activeEffects.jackpotToss.lastFlips.length === 3 &&
+                    this.activeEffects.jackpotToss.lastFlips[0] === this.activeEffects.jackpotToss.lastFlips[1] &&
+                    this.activeEffects.jackpotToss.lastFlips[1] === this.activeEffects.jackpotToss.lastFlips[2]) {
+                    this.multiplier += this.activeEffects.jackpotToss.multiplier;
+                    this.showFloatingText('🔥 JACKPOT +' + this.activeEffects.jackpotToss.multiplier + 'x Multiplier!');
+                }
+            }
+            
+            // Apply Golden Streak (every 5 streak milestone)
+            if (this.activeEffects.goldenStreak) {
+                const currentMilestone = Math.floor(this.streak / 5) * 5;
+                if (currentMilestone > this.activeEffects.goldenStreak.lastStreakMilestone && currentMilestone > 0) {
+                    this.multiplier *= this.activeEffects.goldenStreak.rewardMultiplier;
+                    this.showFloatingText('💰 Golden Streak Bonus!');
+                    this.activeEffects.goldenStreak.lastStreakMilestone = currentMilestone;
+                }
+            }
+            
+            // Apply Lucky Surge (every 10 flips)
+            if (this.activeEffects.luckySurge) {
+                this.activeEffects.luckySurge.flipCount++;
+                if (this.activeEffects.luckySurge.flipCount >= 10) {
+                    this.activeEffects.luckySurge.surgeActive = true;
+                    this.activeEffects.luckySurge.surgeFlipsLeft = 3;
+                    this.activeEffects.luckySurge.flipCount = 0;
+                    this.showFloatingText('⚡ Surge Active (+' + Math.round(this.activeEffects.luckySurge.surgeChance * 100) + '% Heads)');
+                }
+            }
+            
+            // Decrement surge flips
+            if (this.activeEffects.luckySurge && this.activeEffects.luckySurge.surgeActive) {
+                this.activeEffects.luckySurge.surgeFlipsLeft--;
+                if (this.activeEffects.luckySurge.surgeFlipsLeft <= 0) {
+                    this.activeEffects.luckySurge.surgeActive = false;
+                }
+            }
+            
+            // Apply standard multiplier growth
+            let multiplierGrowth = 0.1;
+            this.multiplier = 1.0 + (this.streak * multiplierGrowth);
             
             const points = Math.round(this.basePoints * this.multiplier);
             this.score += points;
@@ -407,11 +437,12 @@ class CoinFlipGame {
                 return; // Don't lose!
             }
             
-            // Apply streak saver
-            if (this.activeEffects.streakSaver && Math.random() < 0.15) {
-                this.showMessage('STREAK SAVER! STREAK PRESERVED!');
+            // Apply new Streak Saver
+            if (this.activeEffects.streakSaver && Math.random() < this.activeEffects.streakSaver.saveChance) {
+                this.showFloatingText('🛡️ Streak Saved!');
                 this.updateDisplay();
                 this.updateCoinEffects();
+                this.decrementItemEffects();
                 return; // Don't continue with normal loss
             }
             
@@ -495,6 +526,7 @@ class CoinFlipGame {
         }
         
         this.updateDisplay();
+        this.decrementItemEffects();
         
         // Reset for next round
         setTimeout(() => {
@@ -676,6 +708,9 @@ class CoinFlipGame {
             ctx.fill();
             ctx.restore();
         }
+        
+        // Draw floating texts
+        this.drawFloatingTexts();
     }
     
     drawPixelCrown(ctx, x, y) {
@@ -1409,223 +1444,473 @@ Play at: ${window.location.href}`;
         animate();
     }
     
+    // Helper methods for new coin flip system
+    getItemLevel(itemId) {
+        // Check if item is already active and return its level
+        if (this.activeEffects[itemId]) {
+            return this.activeEffects[itemId].level;
+        }
+        
+        // Check inventory for the item
+        const inventoryItem = this.inventory.find(item => item && item.id === itemId);
+        if (inventoryItem) {
+            return inventoryItem.tier || 1;
+        }
+        
+        return 1; // Default level
+    }
+
+    showFloatingText(text) {
+        const canvasRect = this.canvas.getBoundingClientRect();
+        const textElement = document.createElement('div');
+        textElement.className = 'floating-text';
+        textElement.textContent = text;
+        textElement.style.position = 'fixed';
+        textElement.style.left = (canvasRect.left + canvasRect.width / 2) + 'px';
+        textElement.style.top = (canvasRect.top - 50) + 'px';
+        textElement.style.fontFamily = '"Press Start 2P", monospace';
+        textElement.style.fontSize = '14px';
+        textElement.style.color = '#ffffff';
+        textElement.style.pointerEvents = 'none';
+        textElement.style.zIndex = '1000';
+        textElement.style.textShadow = '2px 2px 0px #000000';
+        textElement.style.transform = 'translate(-50%, -50%)';
+        textElement.style.animation = 'floatUp 2s ease-out forwards';
+        textElement.style.whiteSpace = 'nowrap';
+        
+        document.body.appendChild(textElement);
+        
+        // Remove after animation
+        setTimeout(() => {
+            if (textElement.parentNode) {
+                textElement.parentNode.removeChild(textElement);
+            }
+        }, 2000);
+    }
+
+    updateFloatingTexts() {
+        // Floating texts are now handled by DOM elements, so we just clear the array
+        this.floatingTexts = [];
+    }
+
+    drawFloatingTexts() {
+        this.floatingTexts.forEach(text => {
+            // Create floating text element instead of using canvas
+            const textElement = document.createElement('div');
+            textElement.className = 'floating-text';
+            textElement.textContent = text.text;
+            textElement.style.position = 'fixed';
+            textElement.style.left = text.x + 'px';
+            textElement.style.top = text.y + 'px';
+            textElement.style.fontFamily = '"Press Start 2P", monospace';
+            textElement.style.fontSize = '16px';
+            textElement.style.color = '#ffffff';
+            textElement.style.pointerEvents = 'none';
+            textElement.style.zIndex = '1000';
+            textElement.style.textShadow = '2px 2px 0px #000000';
+            textElement.style.opacity = text.life;
+            textElement.style.transform = 'translate(-50%, -50%)';
+            
+            document.body.appendChild(textElement);
+            
+            // Remove after animation
+            setTimeout(() => {
+                if (textElement.parentNode) {
+                    textElement.parentNode.removeChild(textElement);
+                }
+            }, text.life * 1000);
+        });
+    }
+
+    decrementItemEffects() {
+        // Decrement flip counts for all active effects
+        Object.keys(this.activeEffects).forEach(key => {
+            const effect = this.activeEffects[key];
+            if (effect && typeof effect === 'object' && effect.flipsLeft !== undefined) {
+                effect.flipsLeft--;
+                if (effect.flipsLeft <= 0) {
+                    delete this.activeEffects[key];
+                }
+            }
+        });
+    }
+
+    startFloatingTextLoop() {
+        const updateLoop = () => {
+            this.updateFloatingTexts();
+            requestAnimationFrame(updateLoop);
+        };
+        updateLoop();
+    }
+
+    determineFlipResult() {
+        // Check for side landing first (Side Master)
+        if (this.activeEffects.sideMaster && Math.random() < this.activeEffects.sideMaster.sideChance) {
+            this.showFloatingText('💫 SIDE LAND! +' + this.activeEffects.sideMaster.multiplier + 'x Multiplier!');
+            this.multiplier += this.activeEffects.sideMaster.multiplier;
+            this.streak += this.activeEffects.sideMaster.streak;
+            return 'side';
+        }
+
+        // Check for Double Toss
+        if (this.activeEffects.doubleToss) {
+            const coinCount = this.activeEffects.doubleToss.coinCount;
+            for (let i = 0; i < coinCount; i++) {
+                if (Math.random() < 0.5) {
+                    return this.playerChoice; // Any heads = win
+                }
+            }
+            return this.playerChoice === 'heads' ? 'tails' : 'heads';
+        }
+
+        // Check for Perfect Toss quick-time event
+        if (this.activeEffects.perfectToss) {
+            // For now, just apply the boost (in a real game, this would be a quick-time event)
+            const boost = this.activeEffects.perfectToss.successBoost;
+            if (Math.random() < boost) {
+                this.showFloatingText('🎯 Perfect Flip +' + Math.round(boost * 100) + '%!');
+                return this.playerChoice;
+            }
+        }
+
+        // Normal flip with Lucky Coin or Weighted Tail
+        let headsChance = 0.5;
+        
+        if (this.activeEffects.luckyCoin) {
+            headsChance += this.activeEffects.luckyCoin.headsChance;
+        }
+        
+        if (this.activeEffects.weightedTail) {
+            headsChance -= this.activeEffects.weightedTail.tailsChance;
+        }
+
+        // Apply Lucky Surge
+        if (this.activeEffects.luckySurge && this.activeEffects.luckySurge.surgeActive) {
+            headsChance += this.activeEffects.luckySurge.surgeChance;
+        }
+
+        // Apply upgrade bonus
+        if (this.getUpgradeBonus) {
+            headsChance += this.getUpgradeBonus('winChance');
+        }
+
+        // Clamp between 0 and 1
+        headsChance = Math.max(0, Math.min(1, headsChance));
+
+        const isHeads = Math.random() < headsChance;
+        return isHeads ? 'heads' : 'tails';
+    }
+
     // Shop System Methods
     defineShopItems() {
         return [
             {
-                id: 'core_greed_engine',
-                name: 'Greed Engine',
-                icon: '⚙️',
-                description: 'Increase per-win multiplier growth from 0.1 to 0.15',
-                effect: 'Core equipment',
-                price: 3000,
-                rarity: 'rare',
-                category: 'Core',
-                type: 'equip',
-                maxTier: 1,
+                id: 'lucky_coin',
+                name: 'Lucky Coin',
+                icon: '🪙',
+                description: '+10% chance for coin to land on Heads',
+                effect: 'Coin flip enhancement',
+                price: 200,
+                rarity: 'common',
+                category: 'Basic',
+                type: 'consumable',
+                maxTier: 3,
                 tier: 1,
-                values: { multiplier_gain: 0.15 },
+                values: { heads_chance: [0.10, 0.20, 0.30] },
+                flipCount: 25,
+                uses: 1,
                 apply: () => {
-                    this.activeEffects.greedEngine = true;
-                    this.showMessage('GREED ENGINE ACTIVE! +0.15 MULTIPLIER GAIN!');
+                    const level = this.getItemLevel('lucky_coin');
+                    this.activeEffects.luckyCoin = {
+                        level: level,
+                        headsChance: [0.10, 0.20, 0.30][level - 1],
+                        flipsLeft: 25
+                    };
+                    this.showFloatingText('✨ Lucky Coin Active (+' + Math.round(this.activeEffects.luckyCoin.headsChance * 100) + '% Heads)');
                 }
             },
             {
-                id: 'core_steady',
-                name: 'Steady Core',
-                icon: '🎯',
-                description: 'Increase base win chance by +8%',
-                effect: 'Core equipment',
-                price: 3000,
-                rarity: 'rare',
-                category: 'Core',
-                type: 'equip',
-                maxTier: 1,
+                id: 'weighted_tail',
+                name: 'Weighted Tail',
+                icon: '⚖️',
+                description: '+10% chance for coin to land on Tails',
+                effect: 'Coin flip enhancement',
+                price: 200,
+                rarity: 'common',
+                category: 'Basic',
+                type: 'consumable',
+                maxTier: 3,
                 tier: 1,
-                values: { win_chance: 0.08 },
+                values: { tails_chance: [0.10, 0.20, 0.30] },
+                flipCount: 25,
+                uses: 1,
                 apply: () => {
-                    this.activeEffects.steadyCore = true;
-                    this.showMessage('STEADY CORE ACTIVE! +8% WIN CHANCE!');
+                    const level = this.getItemLevel('weighted_tail');
+                    this.activeEffects.weightedTail = {
+                        level: level,
+                        tailsChance: [0.10, 0.20, 0.30][level - 1],
+                        flipsLeft: 25
+                    };
+                    this.showFloatingText('✨ Weighted Tail (+' + Math.round(this.activeEffects.weightedTail.tailsChance * 100) + '% Tails)');
                 }
             },
             {
-                id: 'core_doubletap',
-                name: 'Doubletap Core',
-                icon: '💥',
-                description: 'Every 5th correct flip counts as an extra win',
-                effect: 'Core equipment',
-                price: 7500,
-                rarity: 'epic',
-                category: 'Core',
-                type: 'equip',
-                maxTier: 1,
+                id: 'double_toss',
+                name: 'Double Toss',
+                icon: '🎲',
+                description: 'Flips multiple coins - any Head = win',
+                effect: 'Multi-coin flip',
+                price: 350,
+                rarity: 'uncommon',
+                category: 'Basic',
+                type: 'consumable',
+                maxTier: 3,
                 tier: 1,
-                values: { bonus_interval: 5 },
+                values: { coin_count: [2, 3, 4] },
+                flipCount: 10,
+                uses: 1,
                 apply: () => {
-                    this.activeEffects.doubletapCore = true;
-                    this.showMessage('DOUBLETAP CORE ACTIVE! BONUS EVERY 5TH WIN!');
+                    const level = this.getItemLevel('double_toss');
+                    this.activeEffects.doubleToss = {
+                        level: level,
+                        coinCount: [2, 3, 4][level - 1],
+                        flipsLeft: 10
+                    };
+                    this.showFloatingText('✨ Multi Flip Active (' + this.activeEffects.doubleToss.coinCount + ' coins)');
                 }
             },
             {
-                id: 'mod_double_streak',
-                name: 'Double Streak',
+                id: 'jackpot_toss',
+                name: 'Jackpot Toss',
+                icon: '🔥',
+                description: '3 consecutive same results = +5x multiplier next flip',
+                effect: 'Consecutive bonus',
+                price: 400,
+                rarity: 'uncommon',
+                category: 'Advanced',
+                type: 'consumable',
+                maxTier: 3,
+                tier: 1,
+                values: { multiplier: [5, 10, 15] },
+                flipCount: 30,
+                uses: 1,
+                apply: () => {
+                    const level = this.getItemLevel('jackpot_toss');
+                    this.activeEffects.jackpotToss = {
+                        level: level,
+                        multiplier: [5, 10, 15][level - 1],
+                        flipsLeft: 30,
+                        lastFlips: []
+                    };
+                    this.showFloatingText('🔥 JACKPOT READY!');
+                }
+            },
+            {
+                id: 'streak_booster',
+                name: 'Streak Booster',
                 icon: '📈',
-                description: 'Doubles per-win multiplier gain',
-                effect: 'Modifier equipment',
-                price: 4500,
-                rarity: 'rare',
-                category: 'Modifier',
-                type: 'equip',
-                maxTier: 1,
+                description: 'Each win adds +1 to streak bonus',
+                effect: 'Streak enhancement',
+                price: 300,
+                rarity: 'common',
+                category: 'Basic',
+                type: 'consumable',
+                maxTier: 3,
                 tier: 1,
-                values: { multiplier_x: 2 },
+                values: { streak_bonus: [1, 2, 3] },
+                flipCount: 20,
+                uses: 1,
                 apply: () => {
-                    this.activeEffects.doubleStreak = true;
-                    this.showMessage('DOUBLE STREAK ACTIVE! 2X MULTIPLIER GAIN!');
+                    const level = this.getItemLevel('streak_booster');
+                    this.activeEffects.streakBooster = {
+                        level: level,
+                        streakBonus: [1, 2, 3][level - 1],
+                        flipsLeft: 20
+                    };
+                    this.showFloatingText('📈 Streak Booster Active (+' + this.activeEffects.streakBooster.streakBonus + ')');
                 }
             },
             {
-                id: 'mod_streak_saver',
+                id: 'streak_saver',
                 name: 'Streak Saver',
                 icon: '🛡️',
-                description: '15% chance to keep streak on loss',
-                effect: 'Modifier equipment',
-                price: 6000,
-                rarity: 'epic',
-                category: 'Modifier',
-                type: 'equip',
-                maxTier: 1,
+                description: '50% chance streak is not reset on loss',
+                effect: 'Loss protection',
+                price: 400,
+                rarity: 'uncommon',
+                category: 'Advanced',
+                type: 'consumable',
+                maxTier: 3,
                 tier: 1,
-                values: { save_chance: 0.15 },
+                values: { save_chance: [0.50, 0.75, 1.00] },
+                flipCount: 15,
+                uses: 1,
                 apply: () => {
-                    this.activeEffects.streakSaver = true;
-                    this.showMessage('STREAK SAVER ACTIVE! 15% SAVE CHANCE!');
+                    const level = this.getItemLevel('streak_saver');
+                    this.activeEffects.streakSaver = {
+                        level: level,
+                        saveChance: [0.50, 0.75, 1.00][level - 1],
+                        flipsLeft: 15
+                    };
+                    this.showFloatingText('🛡️ Streak Saver Active (' + Math.round(this.activeEffects.streakSaver.saveChance * 100) + '%)');
                 }
             },
             {
-                id: 'mod_edge_bias',
-                name: 'Edge Bias',
-                icon: '⚖️',
-                description: '+1% to +5% base win chance per rarity level',
-                effect: 'Modifier equipment',
-                price: 800,
+                id: 'coin_combo',
+                name: 'Coin Combo',
+                icon: '🔥',
+                description: 'Two Heads in a row = +2x multiplier next flip',
+                effect: 'Combo bonus',
+                price: 350,
+                rarity: 'uncommon',
+                category: 'Advanced',
+                type: 'consumable',
+                maxTier: 3,
+                tier: 1,
+                values: { multiplier: [2, 4, 6] },
+                flipCount: 25,
+                uses: 1,
+                apply: () => {
+                    const level = this.getItemLevel('coin_combo');
+                    this.activeEffects.coinCombo = {
+                        level: level,
+                        multiplier: [2, 4, 6][level - 1],
+                        flipsLeft: 25,
+                        lastFlip: null
+                    };
+                    this.showFloatingText('🔥 Combo Ready!');
+                }
+            },
+            {
+                id: 'tail_chain',
+                name: 'Tail Chain',
+                icon: '⚙️',
+                description: 'Each consecutive Tails adds +1 to total multiplier',
+                effect: 'Tails chain bonus',
+                price: 300,
                 rarity: 'common',
-                category: 'Modifier',
-                type: 'equip',
-                maxTier: 4,
+                category: 'Basic',
+                type: 'consumable',
+                maxTier: 3,
                 tier: 1,
-                values: { win_chance: [0.01, 0.02, 0.03, 0.05] },
+                values: { multiplier: [1, 2, 3] },
+                flipCount: 25,
+                uses: 1,
                 apply: () => {
-                    this.activeEffects.edgeBias = (this.activeEffects.edgeBias || 0) + 1;
-                    this.showMessage(`EDGE BIAS UPGRADED! TIER ${this.activeEffects.edgeBias}!`);
+                    const level = this.getItemLevel('tail_chain');
+                    this.activeEffects.tailChain = {
+                        level: level,
+                        multiplier: [1, 2, 3][level - 1],
+                        flipsLeft: 25,
+                        tailCount: 0
+                    };
+                    this.showFloatingText('⚙️ Tail Chain Active (+' + this.activeEffects.tailChain.multiplier + ')');
                 }
             },
             {
-                id: 'util_bank_buffer',
-                name: 'Bank Buffer',
+                id: 'side_master',
+                name: 'Side Master',
+                icon: '💫',
+                description: 'Coin lands on side = +10x multiplier +3 streak',
+                effect: 'Side landing bonus',
+                price: 500,
+                rarity: 'rare',
+                category: 'Advanced',
+                type: 'consumable',
+                maxTier: 3,
+                tier: 1,
+                values: { multiplier: [10, 20, 30], streak: [3, 5, 8], side_chance: [0.01, 0.02, 0.03] },
+                flipCount: 40,
+                uses: 1,
+                apply: () => {
+                    const level = this.getItemLevel('side_master');
+                    this.activeEffects.sideMaster = {
+                        level: level,
+                        multiplier: [10, 20, 30][level - 1],
+                        streak: [3, 5, 8][level - 1],
+                        sideChance: [0.01, 0.02, 0.03][level - 1],
+                        flipsLeft: 40
+                    };
+                    this.showFloatingText('💫 Side Master Active (+' + Math.round(this.activeEffects.sideMaster.sideChance * 100) + '% side chance)');
+                }
+            },
+            {
+                id: 'lucky_surge',
+                name: 'Lucky Surge',
+                icon: '⚡',
+                description: 'Every 10 flips: +50% Heads chance for next 3 flips',
+                effect: 'Periodic surge',
+                price: 400,
+                rarity: 'uncommon',
+                category: 'Advanced',
+                type: 'consumable',
+                maxTier: 3,
+                tier: 1,
+                values: { surge_chance: [0.50, 0.75, 1.00] },
+                flipCount: 30,
+                uses: 1,
+                apply: () => {
+                    const level = this.getItemLevel('lucky_surge');
+                    this.activeEffects.luckySurge = {
+                        level: level,
+                        surgeChance: [0.50, 0.75, 1.00][level - 1],
+                        flipsLeft: 30,
+                        flipCount: 0,
+                        surgeActive: false,
+                        surgeFlipsLeft: 0
+                    };
+                    this.showFloatingText('⚡ Surge Ready!');
+                }
+            },
+            {
+                id: 'golden_streak',
+                name: 'Golden Streak',
                 icon: '💰',
-                description: 'Gain +15% to +30% more when banking score',
-                effect: 'Utility equipment',
-                price: 1200,
+                description: 'Every 5 streak = double coin reward next flip',
+                effect: 'Streak milestone bonus',
+                price: 400,
+                rarity: 'uncommon',
+                category: 'Advanced',
+                type: 'consumable',
+                maxTier: 3,
+                tier: 1,
+                values: { reward_multiplier: [2, 3, 4] },
+                flipCount: 30,
+                uses: 1,
+                apply: () => {
+                    const level = this.getItemLevel('golden_streak');
+                    this.activeEffects.goldenStreak = {
+                        level: level,
+                        rewardMultiplier: [2, 3, 4][level - 1],
+                        flipsLeft: 30,
+                        lastStreakMilestone: 0
+                    };
+                    this.showFloatingText('💰 Golden Streak Active!');
+                }
+            },
+            {
+                id: 'perfect_toss',
+                name: 'Perfect Toss',
+                icon: '🎯',
+                description: 'Quick-time event for +20% success boost',
+                effect: 'Skill-based bonus',
+                price: 450,
                 rarity: 'rare',
-                category: 'Utility',
-                type: 'equip',
-                maxTier: 2,
+                category: 'Advanced',
+                type: 'consumable',
+                maxTier: 3,
                 tier: 1,
-                values: { bank_bonus: [0.15, 0.30] },
+                values: { success_boost: [0.20, 0.30, 0.40] },
+                flipCount: 25,
+                uses: 1,
                 apply: () => {
-                    this.activeEffects.bankBuffer = (this.activeEffects.bankBuffer || 0) + 1;
-                    this.showMessage(`BANK BUFFER UPGRADED! TIER ${this.activeEffects.bankBuffer}!`);
-                }
-            },
-            {
-                id: 'util_insurance_module',
-                name: 'Insurance Module',
-                icon: '🔒',
-                description: 'On loss, recover 25% of streak score into bank (once per run)',
-                effect: 'Utility equipment',
-                price: 4000,
-                rarity: 'rare',
-                category: 'Utility',
-                type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { recover_pct: 0.25 },
-                apply: () => {
-                    this.activeEffects.insuranceModule = true;
-                    this.showMessage('INSURANCE MODULE ACTIVE! 25% RECOVERY!');
-                }
-            },
-            {
-                id: 'util_mirror_socket',
-                name: 'Mirror Socket',
-                icon: '🪞',
-                description: 'Once per run, after a loss, flip twice and choose the result',
-                effect: 'Utility equipment',
-                price: 5500,
-                rarity: 'epic',
-                category: 'Utility',
-                type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { uses: 1 },
-                apply: () => {
-                    this.activeEffects.mirrorSocket = true;
-                    this.showMessage('MIRROR SOCKET ACTIVE! CHOOSE YOUR RESULT!');
-                }
-            },
-            {
-                id: 'battle_arena_edge',
-                name: 'Arena Edge',
-                icon: '⚔️',
-                description: '+10% win chance vs opponents in battle mode',
-                effect: 'Battle equipment',
-                price: 3500,
-                rarity: 'rare',
-                category: 'Battle',
-                type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { battle_win_chance: 0.1 },
-                apply: () => {
-                    this.activeEffects.arenaEdge = true;
-                    this.showMessage('ARENA EDGE ACTIVE! +10% BATTLE WIN CHANCE!');
-                }
-            },
-            {
-                id: 'battle_wager_multiplier',
-                name: 'Wager Multiplier',
-                icon: '🎲',
-                description: 'Battle wins increase payout by 1.2x',
-                effect: 'Battle equipment',
-                price: 6500,
-                rarity: 'epic',
-                category: 'Battle',
-                type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { wager_mult: 1.2 },
-                apply: () => {
-                    this.activeEffects.wagerMultiplier = true;
-                    this.showMessage('WAGER MULTIPLIER ACTIVE! 1.2X BATTLE PAYOUTS!');
-                }
-            },
-            {
-                id: 'legendary_coin_paradox',
-                name: 'Coin of Paradox',
-                icon: '🪙',
-                description: '+8% win chance, +5% streak save, +0.05 per-win multiplier',
-                effect: 'Legendary equipment',
-                price: 30000,
-                rarity: 'legendary',
-                category: 'Legendary',
-                type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { win_chance: 0.08, save_chance: 0.05, multiplier_gain: 0.05 },
-                apply: () => {
-                    this.activeEffects.coinParadox = true;
-                    this.showMessage('COIN OF PARADOX ACTIVE! LEGENDARY POWERS!');
+                    const level = this.getItemLevel('perfect_toss');
+                    this.activeEffects.perfectToss = {
+                        level: level,
+                        successBoost: [0.20, 0.30, 0.40][level - 1],
+                        flipsLeft: 25
+                    };
+                    this.showFloatingText('🎯 Perfect Toss Ready!');
                 }
             }
         ];
@@ -1712,7 +1997,7 @@ Play at: ${window.location.href}`;
                 <div class="item-title">${item.name}</div>
                 <div class="item-description">${item.description}</div>
                 <div class="item-effect">${item.effect}</div>
-                <div class="item-uses">Uses: ${item.uses}</div>
+                <div class="item-uses">Duration: ${item.flipCount} flips</div>
             `;
             
             itemDiv.addEventListener('click', () => {
@@ -1743,7 +2028,7 @@ Play at: ${window.location.href}`;
         // Add to inventory
         this.inventory[emptySlot] = {
             ...item,
-            uses: item.uses
+            uses: 1 // All items are single-use consumables
         };
         
         this.showMessage(`PURCHASED ${item.name.toUpperCase()}!`);
@@ -1769,7 +2054,7 @@ Play at: ${window.location.href}`;
                     <div class="item-in-slot">
                         <span class="item-icon">${item.icon}</span>
                         <span class="item-name">${item.name}</span>
-                        <span class="item-uses">Uses: ${item.uses}</span>
+                        <span class="item-uses">Duration: ${item.flipCount} flips</span>
                     </div>
                 `;
             } else {
@@ -1789,33 +2074,25 @@ Play at: ${window.location.href}`;
         // Show active effects
         if (Object.keys(this.activeEffects).length > 0) {
             Object.entries(this.activeEffects).forEach(([effect, value]) => {
-                if (value && value !== true && value !== 0) {
+                if (value && typeof value === 'object' && value.flipsLeft !== undefined) {
                     const div = document.createElement('div');
                     div.className = 'active-item';
                     
                     let icon = '✨';
-                    let name = effect;
-                    let duration = '';
+                    let name = effect.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
                     
-                    if (effect === 'freezeMultiplier') {
-                        icon = '❄️';
-                        name = 'Frozen Multi';
-                        duration = `${value.flips} flips`;
-                    } else if (effect === 'greedGauge') {
-                        icon = '📈';
-                        name = 'Greed Gauge';
-                        duration = `${value} uses`;
-                    } else if (effect === 'tacticalDelay') {
-                        icon = '⏱️';
-                        name = 'Tactical Delay';
-                        duration = `${value} uses`;
+                    // Get icon from shop items
+                    const shopItem = this.shopItems.find(item => item.id === effect);
+                    if (shopItem) {
+                        icon = shopItem.icon;
+                        name = shopItem.name;
                     }
                     
                     div.innerHTML = `
                         <span class="active-item-icon">${icon}</span>
                         <div class="active-item-info">
                             <span class="active-item-name">${name}</span>
-                            <span class="active-item-duration">${duration}</span>
+                            <span class="active-item-duration">${value.flipsLeft} flips left</span>
                         </div>
                     `;
                     
@@ -1832,16 +2109,18 @@ Play at: ${window.location.href}`;
             return;
         }
         
-        // Apply item effect
-        item.apply();
-        
-        // Reduce uses
-        item.uses--;
-        
-        if (item.uses <= 0) {
-            // Remove item from inventory
-            this.inventory[slotIndex] = null;
+        // Check if item is already active and at max level
+        if (this.activeEffects[item.id]) {
+            // Refill flip count
+            this.activeEffects[item.id].flipsLeft = item.flipCount;
+            this.showMessage(`${item.name.toUpperCase()} REFILLED!`);
+        } else {
+            // Apply item effect
+            item.apply();
         }
+        
+        // Remove item from inventory (all items are single-use)
+        this.inventory[slotIndex] = null;
         
         // Update displays
         this.updateInventoryDisplay();
