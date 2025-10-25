@@ -189,7 +189,12 @@ class CoinFlipGame {
         if (this.checkForRandomEvent) {
             const eventTriggered = this.checkForRandomEvent();
             if (eventTriggered) {
-                return; // Don't flip if random event triggered
+                // Some events might prevent the flip, others modify it
+                const modifiers = this.getRandomEventModifiers ? this.getRandomEventModifiers() : {};
+                if (modifiers.voidFlip) {
+                    this.showMessage('FLIP VOIDED BY EVENT!');
+                    return;
+                }
             }
         }
         
@@ -202,9 +207,28 @@ class CoinFlipGame {
         let isDoubleToss = false;
         let isSideLand = false;
         
+        // Apply random event modifiers first
+        const eventModifiers = this.getRandomEventModifiers ? this.getRandomEventModifiers() : {};
+        
         // Apply upgrade bonus
         if (this.getUpgradeBonus) {
             winChance += this.getUpgradeBonus('winChance');
+        }
+        
+        // Apply random event chance modifiers
+        if (eventModifiers.headsChance && this.playerChoice === 'heads') {
+            winChance += eventModifiers.headsChance;
+        }
+        if (eventModifiers.tailsChance && this.playerChoice === 'tails') {
+            winChance += eventModifiers.tailsChance;
+        }
+        
+        // Handle reverse logic
+        if (eventModifiers.reverseLogic) {
+            // Swap the logic - if they chose heads, treat as tails choice and vice versa
+            const originalChoice = this.playerChoice;
+            this.playerChoice = this.playerChoice === 'heads' ? 'tails' : 'heads';
+            this.showFloatingText('Logic Reversed!');
         }
         
         // Apply coin flip item effects
@@ -251,12 +275,15 @@ class CoinFlipGame {
             }
         }
         
-        // Handle double toss
+        // Handle double toss (items or events)
         let result;
-        if (this.activeEffects.doubleToss && this.activeEffects.doubleToss.flips > 0) {
+        const isEventDoubleToss = eventModifiers.doubleFlip;
+        
+        if ((this.activeEffects.doubleToss && this.activeEffects.doubleToss.flips > 0) || isEventDoubleToss) {
             isDoubleToss = true;
+            const coinCount = isEventDoubleToss ? 2 : this.activeEffects.doubleToss.coinCount;
             let anyHeads = false;
-            for (let i = 0; i < this.activeEffects.doubleToss.coinCount; i++) {
+            for (let i = 0; i < coinCount; i++) {
                 if (Math.random() < winChance) {
                     anyHeads = true;
                     break;
@@ -266,8 +293,13 @@ class CoinFlipGame {
         } else if (isSideLand) {
             result = 'side'; // Special side result
         } else {
-            result = Math.random() < winChance ? this.playerChoice : 
-                     (this.playerChoice === 'heads' ? 'tails' : 'heads');
+            // Check for bad toss null result
+            if (eventModifiers.nullChance && Math.random() < eventModifiers.nullChance) {
+                result = 'null'; // Null result from bad toss
+            } else {
+                result = Math.random() < winChance ? this.playerChoice : 
+                         (this.playerChoice === 'heads' ? 'tails' : 'heads');
+            }
         }
         
         const willLose = result !== this.playerChoice;
@@ -341,7 +373,43 @@ class CoinFlipGame {
     }
     
     handleResult(result) {
+        // Handle special results
+        if (result === 'null') {
+            this.showMessage('BAD TOSS! NO RESULT!');
+            this.isFlipping = false;
+            this.playerChoice = null;
+            this.canvas.classList.remove('flipping', 'disabled');
+            document.getElementById('choiceContainer').classList.remove('hidden');
+            document.querySelectorAll('.choice-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            
+            // Decrease random event durations but don't process normal result
+            if (this.decreaseRandomEventDurations) {
+                this.decreaseRandomEventDurations();
+            }
+            this.showMessage('CLICK HEADS OR TAILS TO FLIP!');
+            return;
+        }
+        
         const won = result === this.playerChoice || result === 'side';
+        
+        // Process random events first
+        if (this.processRandomEventResults) {
+            const processedResult = this.processRandomEventResults(won, result);
+            if (processedResult === 'void') {
+                // Flip was voided, reset and return
+                this.isFlipping = false;
+                this.playerChoice = null;
+                this.canvas.classList.remove('flipping', 'disabled');
+                document.getElementById('choiceContainer').classList.remove('hidden');
+                document.querySelectorAll('.choice-btn').forEach(btn => {
+                    btn.classList.remove('selected');
+                });
+                this.showMessage('CLICK HEADS OR TAILS TO FLIP!');
+                return;
+            }
+        }
         
         // Handle side land special case
         if (result === 'side' && this.activeEffects.sideMaster) {
@@ -547,6 +615,11 @@ class CoinFlipGame {
         
         // Decrease flip counts for all active coin flip items
         this.decreaseFlipCounts();
+        
+        // Decrease random event durations
+        if (this.decreaseRandomEventDurations) {
+            this.decreaseRandomEventDurations();
+        }
         
         this.updateDisplay();
         
@@ -2228,6 +2301,25 @@ style.textContent = `
         color: #4ecdc4;
         font-weight: bold;
         margin-top: 4px;
+    }
+    
+    .random-events-panel {
+        scrollbar-width: thin;
+        scrollbar-color: #4ecdc4 rgba(0, 0, 0, 0.3);
+    }
+    
+    .random-events-panel::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .random-events-panel::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 3px;
+    }
+    
+    .random-events-panel::-webkit-scrollbar-thumb {
+        background: #4ecdc4;
+        border-radius: 3px;
     }
 `;
 document.head.appendChild(style);
