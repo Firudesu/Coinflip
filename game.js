@@ -27,11 +27,19 @@ class CoinFlipGame {
         
         // Shop system
         this.inventory = [null, null]; // Max 2 items
-        this.shopUnlocked = false;
-        this.shopAvailable = false; // Whether shop can be opened at current streak
-        this.lastShopStreak = 0;
+        this.shopUnlocked = true; // Shop is always available
+        this.shopAvailable = true; // Shop is always available
+        this.lastShopRefresh = Date.now();
+        this.shopRefreshInterval = 5 * 60 * 1000; // 5 minutes in milliseconds
+        this.currentShopStock = [];
         this.activeEffects = {}; // Track active item effects
         this.shopItems = this.defineShopItems();
+        
+        // Initialize shop stock
+        this.refreshShopStock();
+        
+        // Start shop refresh timer
+        this.startShopTimer();
         
         // Titles based on best streak
         this.titles = [
@@ -64,7 +72,6 @@ class CoinFlipGame {
         this.bank = parseInt(localStorage.getItem('bank') || '0');
         this.streakRecords = JSON.parse(localStorage.getItem('streakRecords') || '[]');
         this.achievements = JSON.parse(localStorage.getItem('achievements') || '{}');
-        this.shopUnlocked = localStorage.getItem('shopUnlocked') === 'true';
         
         // Update title based on best streak
         this.updatePlayerTitle();
@@ -131,16 +138,9 @@ class CoinFlipGame {
             this.shareStreak();
         });
         
-        // Shop button - only works when shop is available
+        // Shop button - always available
         document.getElementById('shopBtn').addEventListener('click', () => {
-            if (this.shopAvailable || this.streak === this.lastShopStreak) {
-                this.openShop();
-            } else if (!this.shopUnlocked) {
-                this.showMessage('SHOP UNLOCKS AT 5 STREAK!');
-            } else {
-                const nextShop = this.getNextShopStreak();
-                this.showMessage(`SHOP REOPENS AT STREAK ${nextShop}!`);
-            }
+            this.openShop();
         });
         
         // Floating shop button
@@ -149,11 +149,9 @@ class CoinFlipGame {
             document.getElementById('floatingShopBtn').style.display = 'none';
         });
         
-        // Close shop button - marks shop as used for this streak
+        // Close shop button
         document.getElementById('closeShop').addEventListener('click', () => {
             document.getElementById('shopModal').classList.remove('show');
-            this.shopAvailable = false;  // Shop is now closed until next milestone
-            document.getElementById('floatingShopBtn').style.display = 'none';
         });
         
         // Modal close button
@@ -967,25 +965,8 @@ class CoinFlipGame {
             this.showStreakAnnouncement();
         }
         
-        // Shop unlocks at streak 5 and opens immediately
-        if (this.streak === 5 && !this.shopUnlocked) {
-            this.shopUnlocked = true;
-            this.lastShopStreak = 5;
-            localStorage.setItem('shopUnlocked', 'true');
-            this.showShopUnlock();
-            // Open shop automatically on first unlock
-            setTimeout(() => {
-                this.openShop();
-            }, 2000);
-        }
-        
-        // Shop reopens every 3 streaks after being unlocked (8, 11, 14, 17, 20, etc.)
-        if (this.shopUnlocked && this.streak > 5 && (this.streak - 5) % 3 === 0) {
-            // Shop is now available at this streak
-            this.shopAvailable = true;
-            this.lastShopStreak = this.streak;
-            this.showShopAvailable();
-        }
+        // Check if shop stock needs refreshing
+        this.checkShopRefresh();
         
         // Enable fire mode at streak 10
         if (this.streak === 10) {
@@ -1742,69 +1723,87 @@ Play at: ${window.location.href}`;
     }
     
     openShop() {
-        // Check if shop should be accessible
-        if (!this.shopUnlocked) {
-            this.showMessage('SHOP UNLOCKS AT 5 STREAK!');
-            return;
-        }
-        
-        if (!this.shopAvailable && this.streak !== this.lastShopStreak) {
-            const nextShop = this.getNextShopStreak();
-            this.showMessage(`SHOP REOPENS AT STREAK ${nextShop}!`);
-            return;
-        }
+        // Check if shop stock needs refreshing
+        this.checkShopRefresh();
         
         const modal = document.getElementById('shopModal');
         modal.classList.add('show');
         
         this.updateShopDisplay();
-        this.generateShopStock();
+        this.displayCurrentStock();
     }
     
-    getNextShopStreak() {
-        if (this.streak < 5) return 5;
-        // Calculate next shop opening: 5, 8, 11, 14, 17, 20, etc.
-        const streaksSinceUnlock = this.streak - 5;
-        const nextInterval = Math.floor(streaksSinceUnlock / 3) + 1;
-        return 5 + (nextInterval * 3);
+    checkShopRefresh() {
+        const now = Date.now();
+        if (now - this.lastShopRefresh >= this.shopRefreshInterval) {
+            this.refreshShopStock();
+            this.lastShopRefresh = now;
+            if (document.getElementById('shopModal').classList.contains('show')) {
+                this.displayCurrentStock();
+                this.showMessage('SHOP STOCK REFRESHED!');
+            }
+        }
+    }
+    
+    refreshShopStock() {
+        // Select 4 random items from all available items
+        const availableItems = [...this.shopItems];
+        this.currentShopStock = [];
+        
+        for (let i = 0; i < Math.min(4, availableItems.length); i++) {
+            const randomIndex = Math.floor(Math.random() * availableItems.length);
+            this.currentShopStock.push(availableItems.splice(randomIndex, 1)[0]);
+        }
+    }
+    
+    getTimeUntilRefresh() {
+        const now = Date.now();
+        const timeElapsed = now - this.lastShopRefresh;
+        const timeRemaining = this.shopRefreshInterval - timeElapsed;
+        return Math.max(0, timeRemaining);
+    }
+    
+    formatTimeRemaining(milliseconds) {
+        const minutes = Math.floor(milliseconds / 60000);
+        const seconds = Math.floor((milliseconds % 60000) / 1000);
+        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+    
+    startShopTimer() {
+        // Update shop timer every second
+        setInterval(() => {
+            this.checkShopRefresh();
+            
+            // Update shop status if shop is open
+            if (document.getElementById('shopModal').classList.contains('show')) {
+                const statusEl = document.getElementById('shopStatus');
+                const timeRemaining = this.getTimeUntilRefresh();
+                const timeString = this.formatTimeRemaining(timeRemaining);
+                statusEl.textContent = `NEXT REFRESH: ${timeString}`;
+            }
+        }, 1000);
     }
     
     updateShopDisplay() {
         // Update bank display
         document.getElementById('shopBank').textContent = this.bank;
         
-        // Update status
+        // Update status with refresh timer
         const statusEl = document.getElementById('shopStatus');
-        if (this.streak >= 5 && this.streak % 5 === 0) {
-            statusEl.textContent = 'NEW ITEMS AVAILABLE!';
-            statusEl.style.color = '#4ecdc4';
-        } else if (this.streak < 5) {
-            statusEl.textContent = 'STREAK 5+ TO UNLOCK';
-            statusEl.style.color = '#ff6b6b';
-        } else {
-            const nextShop = Math.ceil(this.streak / 5) * 5;
-            statusEl.textContent = `NEXT SHOP AT ${nextShop} STREAK`;
-            statusEl.style.color = '#ff6b6b';
-        }
+        const timeRemaining = this.getTimeUntilRefresh();
+        const timeString = this.formatTimeRemaining(timeRemaining);
+        statusEl.textContent = `NEXT REFRESH: ${timeString}`;
+        statusEl.style.color = '#4ecdc4';
         
         // Update inventory display
         this.updateInventoryDisplay();
     }
     
-    generateShopStock() {
+    displayCurrentStock() {
         const shopItemsDiv = document.getElementById('shopItems');
         shopItemsDiv.innerHTML = '';
         
-        // Rotate stock - show 6 random items
-        const availableItems = [...this.shopItems];
-        const stock = [];
-        
-        for (let i = 0; i < Math.min(6, availableItems.length); i++) {
-            const randomIndex = Math.floor(Math.random() * availableItems.length);
-            stock.push(availableItems.splice(randomIndex, 1)[0]);
-        }
-        
-        stock.forEach(item => {
+        this.currentShopStock.forEach(item => {
             // Check if item exists in inventory to determine price
             const existingItem = this.inventory.find(invItem => invItem && invItem.id === item.id);
             let currentPrice = item.price;
@@ -1903,7 +1902,7 @@ Play at: ${window.location.href}`;
         
         this.updateDisplay();
         this.updateShopDisplay();
-        this.generateShopStock(); // Refresh shop
+        this.displayCurrentStock(); // Refresh shop display
         
         // Play purchase sound
         try {
@@ -2002,33 +2001,6 @@ Play at: ${window.location.href}`;
         this.updateShopDisplay();
     }
     
-    showShopUnlock() {
-        const btn = document.getElementById('floatingShopBtn');
-        btn.style.display = 'block';
-        
-        this.showMessage('SHOP UNLOCKED! BUY TACTICAL ITEMS!');
-        
-        setTimeout(() => {
-            if (btn.style.display === 'block') {
-                btn.style.display = 'none';
-            }
-        }, 5000);
-    }
-    
-    showShopAvailable() {
-        this.showMessage(`SHOP OPEN NOW! STREAK ${this.streak} - CLOSES AFTER USE!`);
-        
-        const btn = document.getElementById('floatingShopBtn');
-        btn.querySelector('.shop-text').textContent = 'SHOP OPEN!';
-        btn.style.display = 'block';
-        
-        // Auto-hide after 5 seconds if not clicked
-        setTimeout(() => {
-            if (btn.style.display === 'block' && this.shopAvailable) {
-                btn.style.display = 'none';
-            }
-        }, 5000);
-    }
     
     triggerShadowBet() {
         const wager = Math.floor(this.score / 2);
