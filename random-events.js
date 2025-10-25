@@ -1,635 +1,405 @@
 // Random Events System for CoinFlipGame
-// Adds variety and surprise elements to gameplay
+// Background modifiers that trigger occasionally during coin flips
 
 CoinFlipGame.prototype.initRandomEvents = function() {
     this.eventActive = false;
     this.currentEvent = null;
     this.eventHistory = [];
-    this.eventChance = 0.08; // 8% base chance per flip
+    this.baseEventChance = 0.15; // 15% base chance per flip
+    this.activeRandomEvents = {}; // Track active events with durations
     
     // Define all events
     this.randomEvents = this.defineRandomEvents();
+    
+    console.log('Random events initialized');
 };
 
 CoinFlipGame.prototype.defineRandomEvents = function() {
     return {
-        // COIN MUTATIONS
-        coinGlitch: {
-            name: 'Coin Glitch',
-            type: 'mutation',
-            minStreak: 0,
-            description: 'Coin flickers rapidly!',
-            effect: 'Double multiplier if right, lose half bank if wrong',
-            visual: 'glitch',
-            execute: (won) => {
-                if (won) {
-                    this.multiplier *= 2;
-                    this.showEventResult('GLITCH SUCCESS! MULTIPLIER DOUBLED!');
-                } else {
-                    const loss = Math.floor(this.bank / 2);
-                    this.bank = Math.max(0, this.bank - loss);
-                    localStorage.setItem('bank', this.bank);
-                    this.showEventResult(`GLITCH FAIL! LOST ${loss} FROM BANK!`);
-                }
-            }
+        coinCrack: {
+            name: 'Coin Crack',
+            description: 'Reduces chance of landing heads by 15%',
+            duration: 5,
+            triggerChance: 0.08,
+            visual: 'crack',
+            effect: {
+                headsChance: -0.15
+            },
+            message: 'Coin Crack!',
+            endMessage: 'Coin Crack Ended'
         },
         
-        doubleFlip: {
-            name: 'Double Flip',
-            type: 'mutation',
-            minStreak: 5,
-            description: 'Two coins appear!',
-            effect: 'Guess both for x3 reward',
-            visual: 'double',
-            execute: () => {
-                this.showEventResult('DOUBLE FLIP! CHOOSE TWICE!');
-                this.pendingDoubleFlip = true;
-            }
+        windShift: {
+            name: 'Wind Shift',
+            description: 'Increases chance of tails by 20%',
+            duration: 5,
+            triggerChance: 0.10,
+            visual: 'wind',
+            effect: {
+                tailsChance: 0.20
+            },
+            message: 'Wind Shift!',
+            endMessage: 'Wind Shift Ended'
         },
         
-        heavyCoin: {
-            name: 'Heavy Coin',
-            type: 'mutation',
-            minStreak: 0,
-            description: 'Coin spins slower',
-            effect: 'Can lock in guess early for bonus',
-            visual: 'slow',
-            execute: () => {
-                this.flipSpeed = 40; // Slower animation
-                this.showEventResult('HEAVY COIN! TAP TO LOCK IN!');
-            }
-        },
-        
-        ghostCoin: {
-            name: 'Ghost Coin',
-            type: 'mutation',
-            minStreak: 3,
-            description: 'Result hidden briefly',
-            effect: '2 second suspense',
-            visual: 'ghost',
-            execute: (won) => {
-                this.hideResult = true;
-                setTimeout(() => {
-                    this.hideResult = false;
-                    this.showEventResult(won ? 'GHOST REVEALED: WIN!' : 'GHOST REVEALED: LOSS!');
-                }, 2000);
-            }
-        },
-        
-        magnetFlip: {
-            name: 'Magnet Flip',
-            type: 'mutation',
-            minStreak: 10,
-            description: 'Coin lands on edge!',
-            effect: '50/50 reflip, outcome doubled',
-            visual: 'edge',
-            execute: () => {
-                this.showEventResult('EDGE LANDING! REFLIPPING...');
-                this.edgeReflip = true;
-                this.scoreMultiplier = 2;
-            }
-        },
-        
-        // RANDOM REWARDS
         luckySpark: {
             name: 'Lucky Spark',
-            type: 'reward',
-            minStreak: 0,
-            description: 'Sparks fly!',
-            effect: '+0.1 multiplier bonus',
+            description: 'Increases streak gain by +1 for each successful flip',
+            duration: 3,
+            triggerChance: 0.06,
             visual: 'spark',
-            execute: () => {
-                this.multiplier += 0.1;
-                this.showEventResult('LUCKY SPARK! +0.1 MULTIPLIER!');
-                this.createSparkEffect();
-            }
+            effect: {
+                streakBonus: 1
+            },
+            message: 'Lucky Spark Active!',
+            endMessage: 'Lucky Spark Ended'
         },
         
-        coinDrop: {
-            name: 'Coin Drop',
-            type: 'reward',
-            minStreak: 0,
-            description: 'Coins fall out!',
-            effect: 'Free bank bonus',
-            visual: 'coins',
-            execute: () => {
-                const bonus = 10 + Math.floor(Math.random() * 91); // 10-100
-                this.bank += bonus;
-                localStorage.setItem('bank', this.bank);
-                this.showEventResult(`COIN DROP! +${bonus} COINS!`);
-                this.createCoinRain(bonus);
-            }
+        badToss: {
+            name: 'Bad Toss',
+            description: 'Reduces overall accuracy by 10% (chance for null result)',
+            duration: 3,
+            triggerChance: 0.07,
+            visual: 'shake',
+            effect: {
+                nullChance: 0.10
+            },
+            message: 'Bad Toss!',
+            endMessage: 'Bad Toss Ended'
         },
         
-        mysteryChest: {
-            name: 'Mystery Chest',
-            type: 'reward',
-            minStreak: 5,
-            description: 'A chest appears!',
-            effect: 'Win = item, Lose = nothing',
-            visual: 'chest',
-            execute: (won) => {
-                if (won) {
-                    this.showEventResult('CHEST OPENED! ITEM GAINED!');
-                    // Give random item or bonus
-                    this.grantRandomItem();
-                } else {
-                    this.showEventResult('CHEST LOCKED!');
-                }
-            }
+        coinOnSide: {
+            name: 'Coin Lands on Side',
+            description: 'Extremely rare; coin lands on its side. Streak and multiplier double instantly',
+            duration: 0, // Instant effect
+            triggerChance: 0.01,
+            visual: 'side',
+            effect: {
+                instant: true,
+                streakMultiplier: 2,
+                multiplierBonus: 2
+            },
+            message: 'Coin on Edge!',
+            endMessage: null
         },
         
-        goldenFlash: {
-            name: 'Golden Flash',
-            type: 'reward',
-            minStreak: 15,
-            description: 'Golden light!',
-            effect: 'Next flip guaranteed win',
-            visual: 'golden',
-            rarity: 0.01, // 1% chance
-            execute: () => {
-                this.activeEffects.goldenFlash = true;
-                this.showEventResult('GOLDEN FLASH! NEXT FLIP GUARANTEED!');
-                this.createGoldenEffect();
-            }
+        falseToss: {
+            name: 'False Toss',
+            description: 'Flip is voided; player gets no score this round',
+            duration: 1,
+            triggerChance: 0.05,
+            visual: 'void',
+            effect: {
+                voidFlip: true
+            },
+            message: 'False Toss! Try Again.',
+            endMessage: 'False Toss Ended'
         },
         
-        // RANDOM RISKS
-        cursedFlip: {
-            name: 'Cursed Flip',
-            type: 'risk',
-            minStreak: 15,
-            description: 'Coin turns dark!',
-            effect: 'Win drops multiplier, lose resets streak',
-            visual: 'cursed',
-            execute: (won) => {
-                if (won) {
-                    this.multiplier = Math.max(1, this.multiplier - 0.2);
-                    this.showEventResult('CURSED WIN! MULTIPLIER DROPPED!');
-                } else {
-                    this.showEventResult('CURSED LOSS! STREAK RESET!');
-                }
-                this.createCurseEffect();
-            }
+        hotStreak: {
+            name: 'Hot Streak',
+            description: 'Increases all rewards by 25%',
+            duration: 4,
+            triggerChance: 0.06,
+            visual: 'hot',
+            effect: {
+                rewardMultiplier: 1.25
+            },
+            message: 'Hot Streak!',
+            endMessage: 'Hot Streak Ended'
         },
         
-        staticInterference: {
-            name: 'Static',
-            type: 'risk',
-            minStreak: 10,
-            description: 'Display distorts!',
-            effect: 'Input lag',
-            visual: 'static',
-            execute: () => {
-                this.showEventResult('STATIC INTERFERENCE!');
-                document.getElementById('gameContainer').classList.add('static-effect');
-                setTimeout(() => {
-                    document.getElementById('gameContainer').classList.remove('static-effect');
-                }, 3000);
-            }
+        coldFlip: {
+            name: 'Cold Flip',
+            description: 'Decreases all rewards by 25%',
+            duration: 4,
+            triggerChance: 0.06,
+            visual: 'cold',
+            effect: {
+                rewardMultiplier: 0.75
+            },
+            message: 'Cold Flip!',
+            endMessage: 'Cold Flip Ended'
         },
         
-        greedyCoin: {
-            name: 'Greedy Coin',
-            type: 'risk',
-            minStreak: 8,
-            description: 'Coin demands decision!',
-            effect: 'Must bank or continue immediately',
-            visual: 'greedy',
-            execute: (won) => {
-                if (won) {
-                    this.showEventResult('GREEDY COIN! BANK OR CONTINUE NOW!');
-                    this.forceDecision = true;
-                    this.showBankOrContinue();
-                }
-            }
+        doubleFlipper: {
+            name: 'Double Flip',
+            description: 'Two flips occur in one round. Both results count',
+            duration: 1,
+            triggerChance: 0.03,
+            visual: 'double',
+            effect: {
+                doubleFlip: true
+            },
+            message: 'Double Flip!',
+            endMessage: 'Double Flip Ended'
         },
         
-        reverseFlip: {
-            name: 'Reverse Flip',
-            type: 'risk',
-            minStreak: 5,
-            description: 'Outcome reverses!',
-            effect: 'Heads becomes Tails',
+        reverseLuck: {
+            name: 'Reverse Luck',
+            description: 'Heads and Tails effects are swapped',
+            duration: 4,
+            triggerChance: 0.04,
             visual: 'reverse',
-            execute: () => {
-                this.reverseResult = true;
-                this.showEventResult('REVERSE FLIP! OUTCOMES SWAPPED!');
-            }
-        },
-        
-        // SKILL MOMENTS
-        timingWindow: {
-            name: 'Perfect Timing',
-            type: 'skill',
-            minStreak: 3,
-            description: 'Timing bar appears!',
-            effect: 'Hit perfect = +0.2 multiplier',
-            visual: 'timing',
-            execute: () => {
-                this.showTimingBar();
-            }
-        },
-        
-        catchTheCoin: {
-            name: 'Catch!',
-            type: 'skill',
-            minStreak: 5,
-            description: 'Catch the coin!',
-            effect: 'Success = +50 coins',
-            visual: 'catch',
-            execute: () => {
-                this.startCatchMiniGame();
-            }
-        },
-        
-        coinChase: {
-            name: 'Rolling Away!',
-            type: 'skill',
-            minStreak: 10,
-            description: 'Coin rolls off!',
-            effect: 'Tap to save streak',
-            visual: 'chase',
-            execute: () => {
-                this.startChaseMiniGame();
-            }
-        },
-        
-        // SPECIAL ENCOUNTERS
-        coinSpirit: {
-            name: 'Coin Spirit',
-            type: 'encounter',
-            minStreak: 20,
-            description: 'A spirit appears!',
-            effect: 'Offers challenge',
-            visual: 'spirit',
-            execute: () => {
-                this.showSpiritChallenge();
-            }
-        },
-        
-        shadowFlipper: {
-            name: 'Shadow Rival',
-            type: 'encounter',
-            minStreak: 15,
-            description: 'Rival appears!',
-            effect: 'Competes for multiplier',
-            visual: 'shadow',
-            execute: () => {
-                this.startShadowDuel();
-            }
-        },
-        
-        bankRobber: {
-            name: 'Bank Robber!',
-            type: 'encounter',
-            minStreak: 10,
-            description: 'Thief alert!',
-            effect: 'Defend your bank',
-            visual: 'robber',
-            execute: () => {
-                this.defendBank();
-            }
-        },
-        
-        // COSMETIC EVENTS
-        mimicCoin: {
-            name: 'Mimic',
-            type: 'cosmetic',
-            minStreak: 0,
-            description: 'Coin comes alive!',
-            effect: 'Just for fun',
-            visual: 'mimic',
-            execute: () => {
-                this.showEventResult('THE COIN HAS EYES! 👀');
-                this.animateMimic();
-            }
-        },
-        
-        coinJoke: {
-            name: 'Comedian Coin',
-            type: 'cosmetic',
-            minStreak: 0,
-            description: 'Coin tells joke',
-            effect: 'Random text',
-            visual: 'joke',
-            execute: () => {
-                const jokes = [
-                    'Stop flipping me, I\'m dizzy!',
-                    'Heads I win, Tails you lose!',
-                    'I\'m two-faced and proud!',
-                    'Flip me gently, I bruise easily!',
-                    'Another day, another flip...'
-                ];
-                const joke = jokes[Math.floor(Math.random() * jokes.length)];
-                this.showEventResult(joke);
-            }
-        },
-        
-        timeWarp: {
-            name: 'Time Warp',
-            type: 'cosmetic',
-            minStreak: 7,
-            description: 'Everything slows!',
-            effect: 'Dramatic effect',
-            visual: 'timewarp',
-            execute: () => {
-                this.showEventResult('TIME WARP ACTIVATED!');
-                document.getElementById('gameContainer').classList.add('time-warp');
-                setTimeout(() => {
-                    document.getElementById('gameContainer').classList.remove('time-warp');
-                }, 3000);
-            }
-        },
-        
-        // LEGENDARY EVENTS
-        coinEclipse: {
-            name: 'Coin Eclipse',
-            type: 'legendary',
-            minStreak: 30,
-            description: 'Darkness falls!',
-            effect: 'Win for rare reward',
-            visual: 'eclipse',
-            rarity: 0.005, // 0.5% chance
-            execute: (won) => {
-                this.createEclipseEffect();
-                if (won) {
-                    this.showEventResult('ECLIPSE MASTERED! LEGENDARY REWARD!');
-                    this.grantLegendaryReward();
-                } else {
-                    this.showEventResult('ECLIPSE FAILED!');
-                }
-            }
-        },
-        
-        treasureFlip: {
-            name: 'Treasure Flip',
-            type: 'legendary',
-            minStreak: 50,
-            description: 'Golden coin!',
-            effect: 'Jackpot payout',
-            visual: 'treasure',
-            rarity: 0.003,
-            execute: (won) => {
-                if (won) {
-                    const jackpot = 500 + this.streak * 10;
-                    this.bank += jackpot;
-                    localStorage.setItem('bank', this.bank);
-                    this.showEventResult(`TREASURE! +${jackpot} COINS!`);
-                    this.launchFireworks();
-                }
-            }
-        },
-        
-        devilsBargain: {
-            name: 'Devil\'s Bargain',
-            type: 'legendary',
-            minStreak: 25,
-            description: 'A dark offer...',
-            effect: 'High risk, high reward',
-            visual: 'devil',
-            rarity: 0.01,
-            execute: () => {
-                this.showDevilsBargain();
-            }
+            effect: {
+                reverseLogic: true
+            },
+            message: 'Reverse Luck!',
+            endMessage: 'Reverse Luck Ended'
         }
     };
 };
 
 CoinFlipGame.prototype.checkForRandomEvent = function() {
-    // Don't trigger during battles or other special modes
-    if (this.battleMode?.battleInProgress || this.eventActive) return false;
-    
-    // Calculate event chance - increased base chance from 10% to 15%
-    let chance = 0.15;
-    
-    // Increase chance based on streak
-    if (this.streak > 10) chance += 0.05;  // +5% at streak 10+
-    if (this.streak > 20) chance += 0.05;  // +5% at streak 20+
-    if (this.streak > 30) chance += 0.10;  // +10% at streak 30+
-    // Total max chance: 35% at streak 30+
+    // Don't trigger events if one is already processing
+    if (this.processingEvent) return false;
     
     const roll = Math.random();
-    console.log(`Event check: rolled ${roll.toFixed(3)} vs chance ${chance.toFixed(3)}`);
+    console.log('Event check: rolled', roll.toFixed(3), 'vs chance', this.baseEventChance.toFixed(3));
     
-    // Roll for event (FIXED: now correctly using < instead of >)
-    if (roll >= chance) return false;
-    
-    // Filter available events based on streak
-    const availableEvents = Object.entries(this.randomEvents).filter(([key, event]) => {
-        return this.streak >= event.minStreak;
-    });
-    
-    if (availableEvents.length === 0) return false;
-    
-    // Consider rarity
-    let selectedEvent;
-    const rarityRoll = Math.random();
-    
-    // Check for rare events first
-    const rareEvents = availableEvents.filter(([k, e]) => e.rarity && rarityRoll < e.rarity);
-    if (rareEvents.length > 0) {
-        selectedEvent = rareEvents[Math.floor(Math.random() * rareEvents.length)];
-    } else {
-        selectedEvent = availableEvents[Math.floor(Math.random() * availableEvents.length)];
-    }
-    
-    // Trigger event
-    this.triggerRandomEvent(selectedEvent[0]);
-    return true;
-};
-
-CoinFlipGame.prototype.triggerRandomEvent = function(eventKey) {
-    const event = this.randomEvents[eventKey];
-    if (!event) return;
-    
-    this.eventActive = true;
-    this.currentEvent = event;
-    
-    // Show event notification
-    this.showEventNotification(event);
-    
-    // Apply visual effect
-    this.applyEventVisual(event.visual);
-    
-    // Store in history
-    this.eventHistory.push({
-        name: event.name,
-        streak: this.streak,
-        timestamp: Date.now()
-    });
-    
-    // Some events execute immediately, others after flip
-    if (event.type === 'skill' || event.type === 'encounter') {
-        event.execute();
-    }
-};
-
-CoinFlipGame.prototype.showEventNotification = function(event) {
-    const notification = document.createElement('div');
-    notification.className = `event-notification event-${event.type}`;
-    notification.innerHTML = `
-        <div class="event-icon">${this.getEventIcon(event.type)}</div>
-        <div class="event-name">${event.name.toUpperCase()}!</div>
-        <div class="event-desc">${event.description}</div>
-    `;
-    
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-        notification.classList.add('show');
-    }, 10);
-    
-    setTimeout(() => {
-        notification.classList.remove('show');
-        setTimeout(() => notification.remove(), 500);
-    }, 3000);
-};
-
-CoinFlipGame.prototype.getEventIcon = function(type) {
-    const icons = {
-        mutation: '🎲',
-        reward: '🎁',
-        risk: '⚠️',
-        skill: '🎯',
-        encounter: '👤',
-        cosmetic: '✨',
-        legendary: '👑'
-    };
-    return icons[type] || '❓';
-};
-
-CoinFlipGame.prototype.applyEventVisual = function(visual) {
-    const container = document.getElementById('gameContainer');
-    const canvas = this.canvas;
-    
-    switch(visual) {
-        case 'glitch':
-            canvas.classList.add('glitch-effect');
-            break;
-        case 'cursed':
-            canvas.style.filter = 'hue-rotate(180deg) saturate(2)';
-            break;
-        case 'golden':
-            canvas.style.filter = 'brightness(1.5) saturate(2)';
-            break;
-        case 'static':
-            container.classList.add('static-overlay');
-            break;
-        case 'eclipse':
-            container.classList.add('eclipse-effect');
-            break;
-    }
-};
-
-CoinFlipGame.prototype.showEventResult = function(message) {
-    const resultDiv = document.createElement('div');
-    resultDiv.className = 'event-result';
-    resultDiv.textContent = message;
-    
-    document.body.appendChild(resultDiv);
-    
-    setTimeout(() => {
-        resultDiv.classList.add('show');
-    }, 10);
-    
-    setTimeout(() => {
-        resultDiv.remove();
-    }, 3000);
-};
-
-// Mini-game implementations
-CoinFlipGame.prototype.showTimingBar = function() {
-    const bar = document.createElement('div');
-    bar.className = 'timing-bar';
-    bar.innerHTML = `
-        <div class="timing-track">
-            <div class="timing-marker"></div>
-            <div class="timing-target"></div>
-        </div>
-    `;
-    
-    document.getElementById('gameContainer').appendChild(bar);
-    
-    // Animate marker
-    let position = 0;
-    let direction = 1;
-    const interval = setInterval(() => {
-        position += direction * 5;
-        if (position >= 100 || position <= 0) direction *= -1;
-        bar.querySelector('.timing-marker').style.left = position + '%';
-    }, 20);
-    
-    // Listen for click
-    bar.addEventListener('click', () => {
-        clearInterval(interval);
-        const perfect = position > 45 && position < 55;
+    if (roll < this.baseEventChance) {
+        // Select random event
+        const eventKeys = Object.keys(this.randomEvents);
+        const availableEvents = eventKeys.filter(key => {
+            const event = this.randomEvents[key];
+            return Math.random() < event.triggerChance;
+        });
         
-        if (perfect) {
-            this.multiplier += 0.2;
-            this.showEventResult('PERFECT TIMING! +0.2 MULTIPLIER!');
-        } else {
-            this.showEventResult('MISSED TIMING!');
+        if (availableEvents.length > 0) {
+            const selectedKey = availableEvents[Math.floor(Math.random() * availableEvents.length)];
+            const selectedEvent = this.randomEvents[selectedKey];
+            
+            this.triggerRandomEvent(selectedKey, selectedEvent);
+            return true;
         }
-        
-        bar.remove();
-        this.eventActive = false;
-    });
-};
-
-CoinFlipGame.prototype.showBankOrContinue = function() {
-    const modal = document.createElement('div');
-    modal.className = 'decision-modal';
-    modal.innerHTML = `
-        <div class="decision-content">
-            <h3>GREEDY COIN DEMANDS!</h3>
-            <p>Bank now or continue?</p>
-            <p>If you continue and lose, you lose last banked amount!</p>
-            <button class="pixel-btn" onclick="game.greedyBank()">BANK</button>
-            <button class="pixel-btn" onclick="game.greedyContinue()">CONTINUE</button>
-        </div>
-    `;
+    }
     
-    document.body.appendChild(modal);
-    setTimeout(() => modal.classList.add('show'), 10);
+    return false;
 };
 
-CoinFlipGame.prototype.greedyBank = function() {
-    this.bankScore();
-    document.querySelector('.decision-modal').remove();
-    this.forceDecision = false;
-    this.eventActive = false;
+CoinFlipGame.prototype.triggerRandomEvent = function(eventKey, event) {
+    console.log('Triggering event:', event.name);
+    
+    // Handle instant effects
+    if (event.effect.instant) {
+        this.executeInstantEvent(event);
+        return;
+    }
+    
+    // Add to active events
+    this.activeRandomEvents[eventKey] = {
+        ...event,
+        flipsRemaining: event.duration,
+        startTime: Date.now()
+    };
+    
+    // Show visual feedback
+    this.showRandomEventFeedback(event);
+    this.updateRandomEventDisplay();
 };
 
-CoinFlipGame.prototype.greedyContinue = function() {
-    this.greedyRisk = this.bank; // Remember amount at risk
-    document.querySelector('.decision-modal').remove();
-    this.forceDecision = false;
-    this.eventActive = false;
-    this.showEventResult('GREEDY RISK ACCEPTED!');
+CoinFlipGame.prototype.executeInstantEvent = function(event) {
+    if (event.effect.streakMultiplier) {
+        this.streak *= event.effect.streakMultiplier;
+    }
+    if (event.effect.multiplierBonus) {
+        this.multiplier *= event.effect.multiplierBonus;
+    }
+    
+    this.showRandomEventFeedback(event);
+    this.showFloatingText(event.message);
 };
 
-// Clean up event effects
-CoinFlipGame.prototype.cleanupEventEffects = function() {
-    const container = document.getElementById('gameContainer');
+CoinFlipGame.prototype.applyRandomEventEffects = function() {
+    let modifiers = {
+        headsChance: 0,
+        tailsChance: 0,
+        streakBonus: 0,
+        rewardMultiplier: 1,
+        nullChance: 0,
+        voidFlip: false,
+        doubleFlip: false,
+        reverseLogic: false
+    };
+    
+    // Apply all active event effects
+    Object.values(this.activeRandomEvents).forEach(event => {
+        if (event.effect.headsChance) modifiers.headsChance += event.effect.headsChance;
+        if (event.effect.tailsChance) modifiers.tailsChance += event.effect.tailsChance;
+        if (event.effect.streakBonus) modifiers.streakBonus += event.effect.streakBonus;
+        if (event.effect.rewardMultiplier) modifiers.rewardMultiplier *= event.effect.rewardMultiplier;
+        if (event.effect.nullChance) modifiers.nullChance += event.effect.nullChance;
+        if (event.effect.voidFlip) modifiers.voidFlip = true;
+        if (event.effect.doubleFlip) modifiers.doubleFlip = true;
+        if (event.effect.reverseLogic) modifiers.reverseLogic = true;
+    });
+    
+    return modifiers;
+};
+
+CoinFlipGame.prototype.processRandomEventResults = function(won, result) {
+    const modifiers = this.applyRandomEventEffects();
+    
+    // Apply streak bonus
+    if (won && modifiers.streakBonus > 0) {
+        this.streak += modifiers.streakBonus;
+        this.showFloatingText(`+${modifiers.streakBonus} Bonus Streak!`);
+    }
+    
+    // Apply reward multiplier
+    if (won && modifiers.rewardMultiplier !== 1) {
+        const oldScore = this.score;
+        this.score = Math.round(this.score * modifiers.rewardMultiplier);
+        const bonus = this.score - oldScore;
+        if (bonus > 0) {
+            this.showFloatingText(`+${bonus} Event Bonus!`);
+        } else if (bonus < 0) {
+            this.showFloatingText(`${bonus} Event Penalty!`);
+        }
+    }
+    
+    // Handle void flip
+    if (modifiers.voidFlip) {
+        this.showFloatingText('Flip Voided!');
+        return 'void'; // Special return to indicate void
+    }
+    
+    return result;
+};
+
+CoinFlipGame.prototype.decreaseRandomEventDurations = function() {
+    const eventsToRemove = [];
+    
+    Object.keys(this.activeRandomEvents).forEach(eventKey => {
+        const event = this.activeRandomEvents[eventKey];
+        event.flipsRemaining--;
+        
+        if (event.flipsRemaining <= 0) {
+            eventsToRemove.push(eventKey);
+            if (event.endMessage) {
+                this.showFloatingText(event.endMessage);
+            }
+        }
+    });
+    
+    // Remove expired events
+    eventsToRemove.forEach(eventKey => {
+        delete this.activeRandomEvents[eventKey];
+    });
+    
+    this.updateRandomEventDisplay();
+};
+
+CoinFlipGame.prototype.showRandomEventFeedback = function(event) {
+    // Show visual effect based on event type
     const canvas = this.canvas;
     
-    // Remove visual effects
-    canvas.style.filter = '';
-    canvas.classList.remove('glitch-effect');
-    container.classList.remove('static-overlay', 'eclipse-effect', 'time-warp');
+    switch(event.visual) {
+        case 'crack':
+            canvas.style.filter = 'drop-shadow(0 0 20px #ff0000) hue-rotate(0deg)';
+            break;
+        case 'wind':
+            canvas.style.filter = 'drop-shadow(0 0 20px #00ffff) blur(2px)';
+            break;
+        case 'spark':
+            canvas.style.filter = 'drop-shadow(0 0 30px #ffd700) brightness(1.5)';
+            break;
+        case 'shake':
+            canvas.style.animation = 'shake 0.5s infinite';
+            break;
+        case 'side':
+            canvas.style.filter = 'drop-shadow(0 0 40px #ffffff) contrast(2)';
+            break;
+        case 'void':
+            canvas.style.filter = 'grayscale(100%) blur(1px)';
+            break;
+        case 'hot':
+            canvas.style.filter = 'drop-shadow(0 0 25px #ff4500) hue-rotate(20deg)';
+            break;
+        case 'cold':
+            canvas.style.filter = 'drop-shadow(0 0 25px #0080ff) hue-rotate(200deg)';
+            break;
+        case 'double':
+            canvas.style.filter = 'drop-shadow(0 0 20px #ff00ff) saturate(2)';
+            break;
+        case 'reverse':
+            canvas.style.filter = 'invert(1) drop-shadow(0 0 20px #ffffff)';
+            break;
+    }
     
-    // Reset event state
-    this.eventActive = false;
-    this.currentEvent = null;
+    // Reset visual effect after 2 seconds
+    setTimeout(() => {
+        canvas.style.filter = 'drop-shadow(0 0 20px rgba(255, 235, 59, 0.5))';
+        canvas.style.animation = '';
+    }, 2000);
+    
+    // Show floating text
+    this.showFloatingText(event.message);
 };
 
-// Initialize random events
+CoinFlipGame.prototype.updateRandomEventDisplay = function() {
+    // Update the right side panel with active events
+    let eventContainer = document.getElementById('randomEventsContainer');
+    if (!eventContainer) {
+        // Create container if it doesn't exist
+        eventContainer = document.createElement('div');
+        eventContainer.id = 'randomEventsContainer';
+        eventContainer.className = 'random-events-panel';
+        eventContainer.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 250px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #4ecdc4;
+            border-radius: 8px;
+            padding: 10px;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 10px;
+            color: #4ecdc4;
+            z-index: 1000;
+            max-height: 300px;
+            overflow-y: auto;
+        `;
+        document.body.appendChild(eventContainer);
+    }
+    
+    // Clear and update content
+    eventContainer.innerHTML = '<div style="text-align: center; margin-bottom: 10px; color: #ffeb3b;">ACTIVE EVENTS</div>';
+    
+    const activeEventKeys = Object.keys(this.activeRandomEvents);
+    if (activeEventKeys.length === 0) {
+        eventContainer.innerHTML += '<div style="text-align: center; color: #888;">No active events</div>';
+    } else {
+        activeEventKeys.forEach(eventKey => {
+            const event = this.activeRandomEvents[eventKey];
+            const eventDiv = document.createElement('div');
+            eventDiv.style.cssText = `
+                margin: 5px 0;
+                padding: 5px;
+                background: rgba(78, 205, 196, 0.1);
+                border-radius: 4px;
+                border-left: 3px solid #4ecdc4;
+            `;
+            eventDiv.innerHTML = `
+                <div style="color: #ffeb3b; font-weight: bold;">${event.name}</div>
+                <div style="color: #fff; font-size: 8px; margin: 2px 0;">${event.description}</div>
+                <div style="color: #4ecdc4; font-size: 8px;">${event.flipsRemaining} flips left</div>
+            `;
+            eventContainer.appendChild(eventDiv);
+        });
+    }
+};
+
+CoinFlipGame.prototype.getRandomEventModifiers = function() {
+    return this.applyRandomEventEffects();
+};
+
+// Initialize random events when game loads
 document.addEventListener('DOMContentLoaded', function() {
     setTimeout(() => {
         if (window.game) {
             window.game.initRandomEvents();
-            console.log('Random events initialized');
         }
     }, 300);
 });

@@ -27,11 +27,19 @@ class CoinFlipGame {
         
         // Shop system
         this.inventory = [null, null]; // Max 2 items
-        this.shopUnlocked = false;
-        this.shopAvailable = false; // Whether shop can be opened at current streak
-        this.lastShopStreak = 0;
+        this.shopUnlocked = true; // Shop is always available
+        this.shopAvailable = true; // Shop is always available
+        this.lastShopRefresh = Date.now();
+        this.shopRefreshInterval = 5 * 60 * 1000; // 5 minutes in milliseconds
+        this.currentShopStock = [];
         this.activeEffects = {}; // Track active item effects
         this.shopItems = this.defineShopItems();
+        
+        // Initialize shop stock
+        this.refreshShopStock();
+        
+        // Start shop refresh timer
+        this.startShopTimer();
         
         // Titles based on best streak
         this.titles = [
@@ -64,7 +72,6 @@ class CoinFlipGame {
         this.bank = parseInt(localStorage.getItem('bank') || '0');
         this.streakRecords = JSON.parse(localStorage.getItem('streakRecords') || '[]');
         this.achievements = JSON.parse(localStorage.getItem('achievements') || '{}');
-        this.shopUnlocked = localStorage.getItem('shopUnlocked') === 'true';
         
         // Update title based on best streak
         this.updatePlayerTitle();
@@ -131,16 +138,9 @@ class CoinFlipGame {
             this.shareStreak();
         });
         
-        // Shop button - only works when shop is available
+        // Shop button - always available
         document.getElementById('shopBtn').addEventListener('click', () => {
-            if (this.shopAvailable || this.streak === this.lastShopStreak) {
-                this.openShop();
-            } else if (!this.shopUnlocked) {
-                this.showMessage('SHOP UNLOCKS AT 5 STREAK!');
-            } else {
-                const nextShop = this.getNextShopStreak();
-                this.showMessage(`SHOP REOPENS AT STREAK ${nextShop}!`);
-            }
+            this.openShop();
         });
         
         // Floating shop button
@@ -149,11 +149,9 @@ class CoinFlipGame {
             document.getElementById('floatingShopBtn').style.display = 'none';
         });
         
-        // Close shop button - marks shop as used for this streak
+        // Close shop button
         document.getElementById('closeShop').addEventListener('click', () => {
             document.getElementById('shopModal').classList.remove('show');
-            this.shopAvailable = false;  // Shop is now closed until next milestone
-            document.getElementById('floatingShopBtn').style.display = 'none';
         });
         
         // Modal close button
@@ -191,10 +189,13 @@ class CoinFlipGame {
         if (this.checkForRandomEvent) {
             const eventTriggered = this.checkForRandomEvent();
             if (eventTriggered) {
-                console.log('Random event triggered!');
+                // Some events might prevent the flip, others modify it
+                const modifiers = this.getRandomEventModifiers ? this.getRandomEventModifiers() : {};
+                if (modifiers.voidFlip) {
+                    this.showMessage('FLIP VOIDED BY EVENT!');
+                    return;
+                }
             }
-        } else {
-            console.log('Random events not initialized yet');
         }
         
         this.isFlipping = true;
@@ -203,42 +204,103 @@ class CoinFlipGame {
         
         // Determine result with item effects and upgrades
         let winChance = 0.5;
+        let isDoubleToss = false;
+        let isSideLand = false;
+        
+        // Apply random event modifiers first
+        const eventModifiers = this.getRandomEventModifiers ? this.getRandomEventModifiers() : {};
         
         // Apply upgrade bonus
         if (this.getUpgradeBonus) {
             winChance += this.getUpgradeBonus('winChance');
         }
         
-        // Apply prediction buff
-        if (this.activeEffects.predictionBuff) {
-            winChance += this.activeEffects.predictionBuff;
+        // Apply random event chance modifiers
+        if (eventModifiers.headsChance && this.playerChoice === 'heads') {
+            winChance += eventModifiers.headsChance;
+        }
+        if (eventModifiers.tailsChance && this.playerChoice === 'tails') {
+            winChance += eventModifiers.tailsChance;
         }
         
-        // Apply steady core
-        if (this.activeEffects.steadyCore) {
-            winChance += 0.08;
+        // Handle reverse logic
+        if (eventModifiers.reverseLogic) {
+            // Swap the logic - if they chose heads, treat as tails choice and vice versa
+            const originalChoice = this.playerChoice;
+            this.playerChoice = this.playerChoice === 'heads' ? 'tails' : 'heads';
+            this.showFloatingText('Logic Reversed!');
         }
         
-        // Apply edge bias
-        if (this.activeEffects.edgeBias) {
-            const edgeBiasTier = Math.min(this.activeEffects.edgeBias, 4);
-            const edgeBiasValues = [0.01, 0.02, 0.03, 0.05];
-            winChance += edgeBiasValues[edgeBiasTier - 1];
+        // Apply coin flip item effects
+        if (this.activeEffects.luckyCoin && this.activeEffects.luckyCoin.flips > 0) {
+            if (this.playerChoice === 'heads') {
+                winChance += this.activeEffects.luckyCoin.bonus;
+            }
         }
         
-        // Apply coin of paradox
-        if (this.activeEffects.coinParadox) {
-            winChance += 0.08;
+        if (this.activeEffects.weightedTail && this.activeEffects.weightedTail.flips > 0) {
+            if (this.playerChoice === 'tails') {
+                winChance += this.activeEffects.weightedTail.bonus;
+            }
         }
         
-        // Apply lucky charm (guaranteed win)
-        if (this.activeEffects.luckyCharm) {
-            winChance = 1;
-            this.activeEffects.luckyCharm = false;
+        if (this.activeEffects.luckySurge && this.activeEffects.luckySurge.flips > 0) {
+            this.activeEffects.luckySurge.flipCount++;
+            if (this.activeEffects.luckySurge.flipCount % 10 === 0) {
+                this.activeEffects.luckySurge.surgeActive = true;
+                this.activeEffects.luckySurge.surgeFlipsLeft = 3;
+                this.showFloatingText(`⚡ Surge Active (+${Math.round(this.activeEffects.luckySurge.surgeChance * 100)}% Heads)`);
+            }
+            if (this.activeEffects.luckySurge.surgeActive && this.activeEffects.luckySurge.surgeFlipsLeft > 0) {
+                if (this.playerChoice === 'heads') {
+                    winChance += this.activeEffects.luckySurge.surgeChance;
+                }
+                this.activeEffects.luckySurge.surgeFlipsLeft--;
+                if (this.activeEffects.luckySurge.surgeFlipsLeft <= 0) {
+                    this.activeEffects.luckySurge.surgeActive = false;
+                }
+            }
         }
         
-        let result = Math.random() < winChance ? this.playerChoice : 
-                     (this.playerChoice === 'heads' ? 'tails' : 'heads');
+        if (this.activeEffects.perfectToss && this.activeEffects.perfectToss.flips > 0) {
+            // For now, just add the bonus - could implement timing mini-game later
+            winChance += this.activeEffects.perfectToss.skillBonus;
+            this.showFloatingText(`🎯 Perfect Flip +${Math.round(this.activeEffects.perfectToss.skillBonus * 100)}%!`);
+        }
+        
+        // Check for side land
+        if (this.activeEffects.sideMaster && this.activeEffects.sideMaster.flips > 0) {
+            if (Math.random() < this.activeEffects.sideMaster.sideChance) {
+                isSideLand = true;
+            }
+        }
+        
+        // Handle double toss (items or events)
+        let result;
+        const isEventDoubleToss = eventModifiers.doubleFlip;
+        
+        if ((this.activeEffects.doubleToss && this.activeEffects.doubleToss.flips > 0) || isEventDoubleToss) {
+            isDoubleToss = true;
+            const coinCount = isEventDoubleToss ? 2 : this.activeEffects.doubleToss.coinCount;
+            let anyHeads = false;
+            for (let i = 0; i < coinCount; i++) {
+                if (Math.random() < winChance) {
+                    anyHeads = true;
+                    break;
+                }
+            }
+            result = anyHeads ? this.playerChoice : (this.playerChoice === 'heads' ? 'tails' : 'heads');
+        } else if (isSideLand) {
+            result = 'side'; // Special side result
+        } else {
+            // Check for bad toss null result
+            if (eventModifiers.nullChance && Math.random() < eventModifiers.nullChance) {
+                result = 'null'; // Null result from bad toss
+            } else {
+                result = Math.random() < winChance ? this.playerChoice : 
+                         (this.playerChoice === 'heads' ? 'tails' : 'heads');
+            }
+        }
         
         const willLose = result !== this.playerChoice;
         const isEpicMoment = this.streak >= 10 && willLose;
@@ -311,7 +373,50 @@ class CoinFlipGame {
     }
     
     handleResult(result) {
-        const won = result === this.playerChoice;
+        // Handle special results
+        if (result === 'null') {
+            this.showMessage('BAD TOSS! NO RESULT!');
+            this.isFlipping = false;
+            this.playerChoice = null;
+            this.canvas.classList.remove('flipping', 'disabled');
+            document.getElementById('choiceContainer').classList.remove('hidden');
+            document.querySelectorAll('.choice-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            
+            // Decrease random event durations but don't process normal result
+            if (this.decreaseRandomEventDurations) {
+                this.decreaseRandomEventDurations();
+            }
+            this.showMessage('CLICK HEADS OR TAILS TO FLIP!');
+            return;
+        }
+        
+        const won = result === this.playerChoice || result === 'side';
+        
+        // Process random events first
+        if (this.processRandomEventResults) {
+            const processedResult = this.processRandomEventResults(won, result);
+            if (processedResult === 'void') {
+                // Flip was voided, reset and return
+                this.isFlipping = false;
+                this.playerChoice = null;
+                this.canvas.classList.remove('flipping', 'disabled');
+                document.getElementById('choiceContainer').classList.remove('hidden');
+                document.querySelectorAll('.choice-btn').forEach(btn => {
+                    btn.classList.remove('selected');
+                });
+                this.showMessage('CLICK HEADS OR TAILS TO FLIP!');
+                return;
+            }
+        }
+        
+        // Handle side land special case
+        if (result === 'side' && this.activeEffects.sideMaster) {
+            this.streak += this.activeEffects.sideMaster.streakBonus;
+            this.multiplier += this.activeEffects.sideMaster.multiplier;
+            this.showFloatingText(`💫 SIDE LAND! +${this.activeEffects.sideMaster.multiplier}x Multiplier!`);
+        }
         
         // Process active event if any
         if (this.currentEvent && this.currentEvent.execute) {
@@ -394,6 +499,9 @@ class CoinFlipGame {
             this.showResult('WIN!', true);
             this.showMessage(`CORRECT! +${points} POINTS`);
             
+            // Process coin flip item effects on win
+            this.processCoinFlipItemEffects(result, true);
+            
             // Add visual effects
             this.celebrateWin();
         } else {
@@ -407,7 +515,15 @@ class CoinFlipGame {
                 return; // Don't lose!
             }
             
-            // Apply streak saver
+            // Check new coin flip item streak saver first
+            const streakSaved = this.processCoinFlipItemEffects(result, false);
+            if (streakSaved) {
+                this.updateDisplay();
+                this.updateCoinEffects();
+                return; // Don't continue with normal loss
+            }
+            
+            // Apply old streak saver (if still exists)
             if (this.activeEffects.streakSaver && Math.random() < 0.15) {
                 this.showMessage('STREAK SAVER! STREAK PRESERVED!');
                 this.updateDisplay();
@@ -490,8 +606,19 @@ class CoinFlipGame {
                 this.multiplier = 1.0;
             }
             
+            // Process coin flip item effects on loss
+            this.processCoinFlipItemEffects(result, false);
+            
             // Clear some active effects
             delete this.activeEffects.freezeMultiplier;
+        }
+        
+        // Decrease flip counts for all active coin flip items
+        this.decreaseFlipCounts();
+        
+        // Decrease random event durations
+        if (this.decreaseRandomEventDurations) {
+            this.decreaseRandomEventDurations();
         }
         
         this.updateDisplay();
@@ -910,25 +1037,8 @@ class CoinFlipGame {
             this.showStreakAnnouncement();
         }
         
-        // Shop unlocks at streak 5 and opens immediately
-        if (this.streak === 5 && !this.shopUnlocked) {
-            this.shopUnlocked = true;
-            this.lastShopStreak = 5;
-            localStorage.setItem('shopUnlocked', 'true');
-            this.showShopUnlock();
-            // Open shop automatically on first unlock
-            setTimeout(() => {
-                this.openShop();
-            }, 2000);
-        }
-        
-        // Shop reopens every 3 streaks after being unlocked (8, 11, 14, 17, 20, etc.)
-        if (this.shopUnlocked && this.streak > 5 && (this.streak - 5) % 3 === 0) {
-            // Shop is now available at this streak
-            this.shopAvailable = true;
-            this.lastShopStreak = this.streak;
-            this.showShopAvailable();
-        }
+        // Check if shop stock needs refreshing
+        this.checkShopRefresh();
         
         // Enable fire mode at streak 10
         if (this.streak === 10) {
@@ -1413,289 +1523,382 @@ Play at: ${window.location.href}`;
     defineShopItems() {
         return [
             {
-                id: 'core_greed_engine',
-                name: 'Greed Engine',
-                icon: '⚙️',
-                description: 'Increase per-win multiplier growth from 0.1 to 0.15',
-                effect: 'Core equipment',
-                price: 3000,
+                id: 'lucky_coin',
+                name: 'Lucky Coin',
+                icon: '✨',
+                description: '+10% chance for the coin to land on Heads',
+                effect: 'Coin Flip Item',
+                price: 200,
+                rarity: 'common',
+                category: 'Flip',
+                type: 'consumable',
+                maxLevel: 3,
+                level: 1,
+                flipsRemaining: 25,
+                maxFlips: 25,
+                costs: [200, 350, 500],
+                bonuses: [0.1, 0.2, 0.3],
+                apply: (level = 1) => {
+                    const bonus = this.shopItems.find(item => item.id === 'lucky_coin').bonuses[level - 1];
+                    this.activeEffects.luckyCoin = { level, bonus, flips: 25 };
+                    this.showFloatingText(`✨ Lucky Coin Active (+${Math.round(bonus * 100)}% Heads)`);
+                }
+            },
+            {
+                id: 'weighted_tail',
+                name: 'Weighted Tail',
+                icon: '✨',
+                description: '+10% chance for the coin to land on Tails',
+                effect: 'Coin Flip Item',
+                price: 200,
+                rarity: 'common',
+                category: 'Flip',
+                type: 'consumable',
+                maxLevel: 3,
+                level: 1,
+                flipsRemaining: 25,
+                maxFlips: 25,
+                costs: [200, 350, 500],
+                bonuses: [0.1, 0.2, 0.3],
+                apply: (level = 1) => {
+                    const bonus = this.shopItems.find(item => item.id === 'weighted_tail').bonuses[level - 1];
+                    this.activeEffects.weightedTail = { level, bonus, flips: 25 };
+                    this.showFloatingText(`✨ Weighted Tail (+${Math.round(bonus * 100)}% Tails)`);
+                }
+            },
+            {
+                id: 'double_toss',
+                name: 'Double Toss',
+                icon: '🪙',
+                description: 'Flips two coins. If either lands Heads, it counts as a win',
+                effect: 'Coin Flip Item',
+                price: 350,
                 rarity: 'rare',
-                category: 'Core',
-                type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { multiplier_gain: 0.15 },
-                apply: () => {
-                    this.activeEffects.greedEngine = true;
-                    this.showMessage('GREED ENGINE ACTIVE! +0.15 MULTIPLIER GAIN!');
+                category: 'Flip',
+                type: 'consumable',
+                maxLevel: 3,
+                level: 1,
+                flipsRemaining: 10,
+                maxFlips: 10,
+                costs: [350, 500, 700],
+                coinCounts: [2, 3, 4],
+                apply: (level = 1) => {
+                    const coinCount = this.shopItems.find(item => item.id === 'double_toss').coinCounts[level - 1];
+                    this.activeEffects.doubleToss = { level, coinCount, flips: 10 };
+                    this.showFloatingText(`✨ Multi Flip Active`);
                 }
             },
             {
-                id: 'core_steady',
-                name: 'Steady Core',
-                icon: '🎯',
-                description: 'Increase base win chance by +8%',
-                effect: 'Core equipment',
-                price: 3000,
+                id: 'jackpot_toss',
+                name: 'Jackpot Toss',
+                icon: '🔥',
+                description: 'When 3 consecutive flips land the same, gain +5 multiplier for next flip',
+                effect: 'Coin Flip Item',
+                price: 400,
                 rarity: 'rare',
-                category: 'Core',
-                type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { win_chance: 0.08 },
-                apply: () => {
-                    this.activeEffects.steadyCore = true;
-                    this.showMessage('STEADY CORE ACTIVE! +8% WIN CHANCE!');
+                category: 'Flip',
+                type: 'consumable',
+                maxLevel: 3,
+                level: 1,
+                flipsRemaining: 30,
+                maxFlips: 30,
+                costs: [400, 600, 850],
+                multipliers: [5, 10, 15],
+                apply: (level = 1) => {
+                    const multiplier = this.shopItems.find(item => item.id === 'jackpot_toss').multipliers[level - 1];
+                    this.activeEffects.jackpotToss = { level, multiplier, flips: 30, consecutiveHistory: [] };
+                    this.showFloatingText(`🔥 Jackpot Toss Active`);
                 }
             },
             {
-                id: 'core_doubletap',
-                name: 'Doubletap Core',
-                icon: '💥',
-                description: 'Every 5th correct flip counts as an extra win',
-                effect: 'Core equipment',
-                price: 7500,
-                rarity: 'epic',
-                category: 'Core',
-                type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { bonus_interval: 5 },
-                apply: () => {
-                    this.activeEffects.doubletapCore = true;
-                    this.showMessage('DOUBLETAP CORE ACTIVE! BONUS EVERY 5TH WIN!');
-                }
-            },
-            {
-                id: 'mod_double_streak',
-                name: 'Double Streak',
+                id: 'streak_booster',
+                name: 'Streak Booster',
                 icon: '📈',
-                description: 'Doubles per-win multiplier gain',
-                effect: 'Modifier equipment',
-                price: 4500,
-                rarity: 'rare',
-                category: 'Modifier',
-                type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { multiplier_x: 2 },
-                apply: () => {
-                    this.activeEffects.doubleStreak = true;
-                    this.showMessage('DOUBLE STREAK ACTIVE! 2X MULTIPLIER GAIN!');
+                description: 'Each time you win a flip, gain +1 streak bonus',
+                effect: 'Coin Flip Item',
+                price: 300,
+                rarity: 'common',
+                category: 'Flip',
+                type: 'consumable',
+                maxLevel: 3,
+                level: 1,
+                flipsRemaining: 20,
+                maxFlips: 20,
+                costs: [300, 500, 700],
+                bonuses: [1, 2, 3],
+                apply: (level = 1) => {
+                    const bonus = this.shopItems.find(item => item.id === 'streak_booster').bonuses[level - 1];
+                    this.activeEffects.streakBooster = { level, bonus, flips: 20 };
+                    this.showFloatingText(`📈 Streak Booster Active`);
                 }
             },
             {
-                id: 'mod_streak_saver',
+                id: 'streak_saver',
                 name: 'Streak Saver',
                 icon: '🛡️',
-                description: '15% chance to keep streak on loss',
-                effect: 'Modifier equipment',
-                price: 6000,
-                rarity: 'epic',
-                category: 'Modifier',
-                type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { save_chance: 0.15 },
-                apply: () => {
-                    this.activeEffects.streakSaver = true;
-                    this.showMessage('STREAK SAVER ACTIVE! 15% SAVE CHANCE!');
+                description: 'When you lose, there\'s a 50% chance your streak is not reset',
+                effect: 'Coin Flip Item',
+                price: 400,
+                rarity: 'rare',
+                category: 'Flip',
+                type: 'consumable',
+                maxLevel: 3,
+                level: 1,
+                flipsRemaining: 15,
+                maxFlips: 15,
+                costs: [400, 600, 800],
+                saveChances: [0.5, 0.75, 1.0],
+                apply: (level = 1) => {
+                    const saveChance = this.shopItems.find(item => item.id === 'streak_saver').saveChances[level - 1];
+                    this.activeEffects.streakSaver = { level, saveChance, flips: 15 };
+                    this.showFloatingText(`🛡️ Streak Saver Active`);
                 }
             },
             {
-                id: 'mod_edge_bias',
-                name: 'Edge Bias',
-                icon: '⚖️',
-                description: '+1% to +5% base win chance per rarity level',
-                effect: 'Modifier equipment',
-                price: 800,
+                id: 'coin_combo',
+                name: 'Coin Combo',
+                icon: '🔥',
+                description: 'Every time you land on Heads twice in a row, add +2x multiplier for the next flip',
+                effect: 'Coin Flip Item',
+                price: 350,
+                rarity: 'rare',
+                category: 'Flip',
+                type: 'consumable',
+                maxLevel: 3,
+                level: 1,
+                flipsRemaining: 25,
+                maxFlips: 25,
+                costs: [350, 500, 700],
+                multipliers: [2, 4, 6],
+                apply: (level = 1) => {
+                    const multiplier = this.shopItems.find(item => item.id === 'coin_combo').multipliers[level - 1];
+                    this.activeEffects.coinCombo = { level, multiplier, flips: 25, consecutiveHeads: 0 };
+                    this.showFloatingText(`🔥 Coin Combo Active`);
+                }
+            },
+            {
+                id: 'tail_chain',
+                name: 'Tail Chain',
+                icon: '⚙️',
+                description: 'Each time you land on Tails consecutively, gain +1 to total multiplier',
+                effect: 'Coin Flip Item',
+                price: 300,
                 rarity: 'common',
-                category: 'Modifier',
-                type: 'equip',
-                maxTier: 4,
-                tier: 1,
-                values: { win_chance: [0.01, 0.02, 0.03, 0.05] },
-                apply: () => {
-                    this.activeEffects.edgeBias = (this.activeEffects.edgeBias || 0) + 1;
-                    this.showMessage(`EDGE BIAS UPGRADED! TIER ${this.activeEffects.edgeBias}!`);
+                category: 'Flip',
+                type: 'consumable',
+                maxLevel: 3,
+                level: 1,
+                flipsRemaining: 25,
+                maxFlips: 25,
+                costs: [300, 500, 700],
+                bonuses: [1, 2, 3],
+                apply: (level = 1) => {
+                    const bonus = this.shopItems.find(item => item.id === 'tail_chain').bonuses[level - 1];
+                    this.activeEffects.tailChain = { level, bonus, flips: 25, consecutiveTails: 0 };
+                    this.showFloatingText(`⚙️ Tail Chain Active`);
                 }
             },
             {
-                id: 'util_bank_buffer',
-                name: 'Bank Buffer',
+                id: 'side_master',
+                name: 'Side Master',
+                icon: '💫',
+                description: 'If a coin lands on its side (rare 1% base chance), gain +10x multiplier and +3 streak',
+                effect: 'Coin Flip Item',
+                price: 500,
+                rarity: 'epic',
+                category: 'Flip',
+                type: 'consumable',
+                maxLevel: 3,
+                level: 1,
+                flipsRemaining: 40,
+                maxFlips: 40,
+                costs: [500, 700, 950],
+                multipliers: [10, 20, 30],
+                streakBonuses: [3, 5, 8],
+                sideChances: [0.01, 0.02, 0.03],
+                apply: (level = 1) => {
+                    const item = this.shopItems.find(item => item.id === 'side_master');
+                    const multiplier = item.multipliers[level - 1];
+                    const streakBonus = item.streakBonuses[level - 1];
+                    const sideChance = item.sideChances[level - 1];
+                    this.activeEffects.sideMaster = { level, multiplier, streakBonus, sideChance, flips: 40 };
+                    this.showFloatingText(`💫 Side Master Active`);
+                }
+            },
+            {
+                id: 'lucky_surge',
+                name: 'Lucky Surge',
+                icon: '⚡',
+                description: 'Every 10 flips, gain a burst +50% chance for Heads for the next 3 flips',
+                effect: 'Coin Flip Item',
+                price: 400,
+                rarity: 'rare',
+                category: 'Flip',
+                type: 'consumable',
+                maxLevel: 3,
+                level: 1,
+                flipsRemaining: 30,
+                maxFlips: 30,
+                costs: [400, 600, 800],
+                surgeChances: [0.5, 0.75, 1.0],
+                apply: (level = 1) => {
+                    const surgeChance = this.shopItems.find(item => item.id === 'lucky_surge').surgeChances[level - 1];
+                    this.activeEffects.luckySurge = { level, surgeChance, flips: 30, flipCount: 0, surgeActive: false, surgeFlipsLeft: 0 };
+                    this.showFloatingText(`⚡ Lucky Surge Active`);
+                }
+            },
+            {
+                id: 'golden_streak',
+                name: 'Golden Streak',
                 icon: '💰',
-                description: 'Gain +15% to +30% more when banking score',
-                effect: 'Utility equipment',
-                price: 1200,
+                description: 'Each time streak hits 5, double your coin reward next flip',
+                effect: 'Coin Flip Item',
+                price: 400,
                 rarity: 'rare',
-                category: 'Utility',
-                type: 'equip',
-                maxTier: 2,
-                tier: 1,
-                values: { bank_bonus: [0.15, 0.30] },
-                apply: () => {
-                    this.activeEffects.bankBuffer = (this.activeEffects.bankBuffer || 0) + 1;
-                    this.showMessage(`BANK BUFFER UPGRADED! TIER ${this.activeEffects.bankBuffer}!`);
+                category: 'Flip',
+                type: 'consumable',
+                maxLevel: 3,
+                level: 1,
+                flipsRemaining: 30,
+                maxFlips: 30,
+                costs: [400, 650, 900],
+                rewardMultipliers: [2, 3, 4],
+                apply: (level = 1) => {
+                    const rewardMultiplier = this.shopItems.find(item => item.id === 'golden_streak').rewardMultipliers[level - 1];
+                    this.activeEffects.goldenStreak = { level, rewardMultiplier, flips: 30 };
+                    this.showFloatingText(`💰 Golden Streak Active`);
                 }
             },
             {
-                id: 'util_insurance_module',
-                name: 'Insurance Module',
-                icon: '🔒',
-                description: 'On loss, recover 25% of streak score into bank (once per run)',
-                effect: 'Utility equipment',
-                price: 4000,
-                rarity: 'rare',
-                category: 'Utility',
-                type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { recover_pct: 0.25 },
-                apply: () => {
-                    this.activeEffects.insuranceModule = true;
-                    this.showMessage('INSURANCE MODULE ACTIVE! 25% RECOVERY!');
-                }
-            },
-            {
-                id: 'util_mirror_socket',
-                name: 'Mirror Socket',
-                icon: '🪞',
-                description: 'Once per run, after a loss, flip twice and choose the result',
-                effect: 'Utility equipment',
-                price: 5500,
+                id: 'perfect_toss',
+                name: 'Perfect Toss',
+                icon: '🎯',
+                description: 'Adds a visual skill-based quick-time flip chance for +20% success boost',
+                effect: 'Coin Flip Item',
+                price: 450,
                 rarity: 'epic',
-                category: 'Utility',
-                type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { uses: 1 },
-                apply: () => {
-                    this.activeEffects.mirrorSocket = true;
-                    this.showMessage('MIRROR SOCKET ACTIVE! CHOOSE YOUR RESULT!');
-                }
-            },
-            {
-                id: 'battle_arena_edge',
-                name: 'Arena Edge',
-                icon: '⚔️',
-                description: '+10% win chance vs opponents in battle mode',
-                effect: 'Battle equipment',
-                price: 3500,
-                rarity: 'rare',
-                category: 'Battle',
-                type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { battle_win_chance: 0.1 },
-                apply: () => {
-                    this.activeEffects.arenaEdge = true;
-                    this.showMessage('ARENA EDGE ACTIVE! +10% BATTLE WIN CHANCE!');
-                }
-            },
-            {
-                id: 'battle_wager_multiplier',
-                name: 'Wager Multiplier',
-                icon: '🎲',
-                description: 'Battle wins increase payout by 1.2x',
-                effect: 'Battle equipment',
-                price: 6500,
-                rarity: 'epic',
-                category: 'Battle',
-                type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { wager_mult: 1.2 },
-                apply: () => {
-                    this.activeEffects.wagerMultiplier = true;
-                    this.showMessage('WAGER MULTIPLIER ACTIVE! 1.2X BATTLE PAYOUTS!');
-                }
-            },
-            {
-                id: 'legendary_coin_paradox',
-                name: 'Coin of Paradox',
-                icon: '🪙',
-                description: '+8% win chance, +5% streak save, +0.05 per-win multiplier',
-                effect: 'Legendary equipment',
-                price: 30000,
-                rarity: 'legendary',
-                category: 'Legendary',
-                type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { win_chance: 0.08, save_chance: 0.05, multiplier_gain: 0.05 },
-                apply: () => {
-                    this.activeEffects.coinParadox = true;
-                    this.showMessage('COIN OF PARADOX ACTIVE! LEGENDARY POWERS!');
+                category: 'Flip',
+                type: 'consumable',
+                maxLevel: 3,
+                level: 1,
+                flipsRemaining: 25,
+                maxFlips: 25,
+                costs: [450, 650, 850],
+                skillBonuses: [0.2, 0.3, 0.4],
+                apply: (level = 1) => {
+                    const skillBonus = this.shopItems.find(item => item.id === 'perfect_toss').skillBonuses[level - 1];
+                    this.activeEffects.perfectToss = { level, skillBonus, flips: 25 };
+                    this.showFloatingText(`🎯 Perfect Toss Active`);
                 }
             }
         ];
     }
     
     openShop() {
-        // Check if shop should be accessible
-        if (!this.shopUnlocked) {
-            this.showMessage('SHOP UNLOCKS AT 5 STREAK!');
-            return;
-        }
-        
-        if (!this.shopAvailable && this.streak !== this.lastShopStreak) {
-            const nextShop = this.getNextShopStreak();
-            this.showMessage(`SHOP REOPENS AT STREAK ${nextShop}!`);
-            return;
-        }
+        // Check if shop stock needs refreshing
+        this.checkShopRefresh();
         
         const modal = document.getElementById('shopModal');
         modal.classList.add('show');
         
         this.updateShopDisplay();
-        this.generateShopStock();
+        this.displayCurrentStock();
     }
     
-    getNextShopStreak() {
-        if (this.streak < 5) return 5;
-        // Calculate next shop opening: 5, 8, 11, 14, 17, 20, etc.
-        const streaksSinceUnlock = this.streak - 5;
-        const nextInterval = Math.floor(streaksSinceUnlock / 3) + 1;
-        return 5 + (nextInterval * 3);
+    checkShopRefresh() {
+        const now = Date.now();
+        if (now - this.lastShopRefresh >= this.shopRefreshInterval) {
+            this.refreshShopStock();
+            this.lastShopRefresh = now;
+            if (document.getElementById('shopModal').classList.contains('show')) {
+                this.displayCurrentStock();
+                this.showMessage('SHOP STOCK REFRESHED!');
+            }
+        }
+    }
+    
+    refreshShopStock() {
+        // Select 4 random items from all available items
+        const availableItems = [...this.shopItems];
+        this.currentShopStock = [];
+        
+        for (let i = 0; i < Math.min(4, availableItems.length); i++) {
+            const randomIndex = Math.floor(Math.random() * availableItems.length);
+            this.currentShopStock.push(availableItems.splice(randomIndex, 1)[0]);
+        }
+    }
+    
+    getTimeUntilRefresh() {
+        const now = Date.now();
+        const timeElapsed = now - this.lastShopRefresh;
+        const timeRemaining = this.shopRefreshInterval - timeElapsed;
+        return Math.max(0, timeRemaining);
+    }
+    
+    formatTimeRemaining(milliseconds) {
+        const minutes = Math.floor(milliseconds / 60000);
+        const seconds = Math.floor((milliseconds % 60000) / 1000);
+        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+    
+    startShopTimer() {
+        // Update shop timer every second
+        setInterval(() => {
+            this.checkShopRefresh();
+            
+            // Update shop status if shop is open
+            if (document.getElementById('shopModal').classList.contains('show')) {
+                const statusEl = document.getElementById('shopStatus');
+                const timeRemaining = this.getTimeUntilRefresh();
+                const timeString = this.formatTimeRemaining(timeRemaining);
+                statusEl.textContent = `NEXT REFRESH: ${timeString}`;
+            }
+        }, 1000);
     }
     
     updateShopDisplay() {
         // Update bank display
         document.getElementById('shopBank').textContent = this.bank;
         
-        // Update status
+        // Update status with refresh timer
         const statusEl = document.getElementById('shopStatus');
-        if (this.streak >= 5 && this.streak % 5 === 0) {
-            statusEl.textContent = 'NEW ITEMS AVAILABLE!';
-            statusEl.style.color = '#4ecdc4';
-        } else if (this.streak < 5) {
-            statusEl.textContent = 'STREAK 5+ TO UNLOCK';
-            statusEl.style.color = '#ff6b6b';
-        } else {
-            const nextShop = Math.ceil(this.streak / 5) * 5;
-            statusEl.textContent = `NEXT SHOP AT ${nextShop} STREAK`;
-            statusEl.style.color = '#ff6b6b';
-        }
+        const timeRemaining = this.getTimeUntilRefresh();
+        const timeString = this.formatTimeRemaining(timeRemaining);
+        statusEl.textContent = `NEXT REFRESH: ${timeString}`;
+        statusEl.style.color = '#4ecdc4';
         
         // Update inventory display
         this.updateInventoryDisplay();
     }
     
-    generateShopStock() {
+    displayCurrentStock() {
         const shopItemsDiv = document.getElementById('shopItems');
         shopItemsDiv.innerHTML = '';
         
-        // Rotate stock - show 6 random items
-        const availableItems = [...this.shopItems];
-        const stock = [];
-        
-        for (let i = 0; i < Math.min(6, availableItems.length); i++) {
-            const randomIndex = Math.floor(Math.random() * availableItems.length);
-            stock.push(availableItems.splice(randomIndex, 1)[0]);
-        }
-        
-        stock.forEach(item => {
-            const scaledPrice = Math.round(item.price * (1 + this.streak * 0.05)); // Price scales with streak
+        this.currentShopStock.forEach(item => {
+            // Check if item exists in inventory to determine price
+            const existingItem = this.inventory.find(invItem => invItem && invItem.id === item.id);
+            let currentPrice = item.price;
+            let levelText = 'Level 1';
+            let actionText = 'BUY';
+            
+            if (existingItem) {
+                if (existingItem.level >= item.maxLevel) {
+                    // At max level - show refill price (same as current level)
+                    currentPrice = item.costs[existingItem.level - 1];
+                    levelText = `Max Level - Refill Durability`;
+                    actionText = 'REFILL';
+                } else {
+                    // Show next level price
+                    currentPrice = item.costs[existingItem.level];
+                    levelText = `Upgrade to Level ${existingItem.level + 1}`;
+                    actionText = 'UPGRADE';
+                }
+            } else {
+                currentPrice = item.costs[0];
+            }
+            
+            const scaledPrice = Math.round(currentPrice * (1 + this.streak * 0.05)); // Price scales with streak
             const itemDiv = document.createElement('div');
             itemDiv.className = 'shop-item';
             
@@ -1710,9 +1913,11 @@ Play at: ${window.location.href}`;
                     <span class="item-price">${scaledPrice} 🪙</span>
                 </div>
                 <div class="item-title">${item.name}</div>
+                <div class="item-level-info">${levelText}</div>
                 <div class="item-description">${item.description}</div>
                 <div class="item-effect">${item.effect}</div>
-                <div class="item-uses">Uses: ${item.uses}</div>
+                <div class="item-flips">${item.maxFlips} flips duration</div>
+                <div class="item-action">${actionText}</div>
             `;
             
             itemDiv.addEventListener('click', () => {
@@ -1729,27 +1934,47 @@ Play at: ${window.location.href}`;
             return;
         }
         
-        // Check inventory space
-        const emptySlot = this.inventory.findIndex(slot => slot === null);
-        if (emptySlot === -1) {
-            this.showMessage('INVENTORY FULL! USE AN ITEM FIRST!');
-            return;
+        // Check if item already exists in inventory (for stacking)
+        const existingSlot = this.inventory.findIndex(slot => slot && slot.id === item.id);
+        
+        if (existingSlot !== -1) {
+            const existingItem = this.inventory[existingSlot];
+            
+            // If at max level, refill durability
+            if (existingItem.level >= item.maxLevel) {
+                existingItem.flipsRemaining = item.maxFlips;
+                this.showMessage(`${item.name.toUpperCase()} DURABILITY RESTORED!`);
+            } else {
+                // Upgrade to next level
+                existingItem.level++;
+                existingItem.flipsRemaining = item.maxFlips;
+                const nextCost = item.costs[existingItem.level - 1];
+                this.showMessage(`${item.name.toUpperCase()} UPGRADED TO LEVEL ${existingItem.level}!`);
+            }
+        } else {
+            // Check inventory space for new item
+            const emptySlot = this.inventory.findIndex(slot => slot === null);
+            if (emptySlot === -1) {
+                this.showMessage('INVENTORY FULL! USE AN ITEM FIRST!');
+                return;
+            }
+            
+            // Add new item to inventory
+            this.inventory[emptySlot] = {
+                ...item,
+                level: 1,
+                flipsRemaining: item.maxFlips
+            };
+            this.showMessage(`PURCHASED ${item.name.toUpperCase()}!`);
         }
         
         // Purchase item
         this.bank -= price;
         localStorage.setItem('bank', this.bank);
         
-        // Add to inventory
-        this.inventory[emptySlot] = {
-            ...item,
-            uses: item.uses
-        };
-        
-        this.showMessage(`PURCHASED ${item.name.toUpperCase()}!`);
         this.updateDisplay();
         this.updateShopDisplay();
-        this.generateShopStock(); // Refresh shop
+        this.displayCurrentStock(); // Refresh shop display
         
         // Play purchase sound
         try {
@@ -1769,9 +1994,17 @@ Play at: ${window.location.href}`;
                     <div class="item-in-slot">
                         <span class="item-icon">${item.icon}</span>
                         <span class="item-name">${item.name}</span>
-                        <span class="item-uses">Uses: ${item.uses}</span>
+                        <span class="item-level">Lv.${item.level}/${item.maxLevel}</span>
+                        <span class="item-flips">${item.flipsRemaining}/${item.maxFlips} flips</span>
                     </div>
                 `;
+                
+                // Add visual indicator if item is depleted
+                if (item.flipsRemaining <= 0) {
+                    slot.classList.add('depleted');
+                } else {
+                    slot.classList.remove('depleted');
+                }
             } else {
                 slot.classList.add('empty');
                 slot.innerHTML = '<span class="slot-empty">EMPTY</span>';
@@ -1828,53 +2061,18 @@ Play at: ${window.location.href}`;
     useItem(slotIndex) {
         const item = this.inventory[slotIndex];
         
-        if (!item) {
+        if (!item || item.flipsRemaining <= 0) {
             return;
         }
         
-        // Apply item effect
-        item.apply();
-        
-        // Reduce uses
-        item.uses--;
-        
-        if (item.uses <= 0) {
-            // Remove item from inventory
-            this.inventory[slotIndex] = null;
-        }
+        // Apply item effect with current level
+        item.apply(item.level);
         
         // Update displays
         this.updateInventoryDisplay();
         this.updateShopDisplay();
     }
     
-    showShopUnlock() {
-        const btn = document.getElementById('floatingShopBtn');
-        btn.style.display = 'block';
-        
-        this.showMessage('SHOP UNLOCKED! BUY TACTICAL ITEMS!');
-        
-        setTimeout(() => {
-            if (btn.style.display === 'block') {
-                btn.style.display = 'none';
-            }
-        }, 5000);
-    }
-    
-    showShopAvailable() {
-        this.showMessage(`SHOP OPEN NOW! STREAK ${this.streak} - CLOSES AFTER USE!`);
-        
-        const btn = document.getElementById('floatingShopBtn');
-        btn.querySelector('.shop-text').textContent = 'SHOP OPEN!';
-        btn.style.display = 'block';
-        
-        // Auto-hide after 5 seconds if not clicked
-        setTimeout(() => {
-            if (btn.style.display === 'block' && this.shopAvailable) {
-                btn.style.display = 'none';
-            }
-        }, 5000);
-    }
     
     triggerShadowBet() {
         const wager = Math.floor(this.score / 2);
@@ -1901,15 +2099,227 @@ Play at: ${window.location.href}`;
             this.updateDisplay();
         }, 1500);
     }
+    
+    // Coin Flip Item System Methods
+    processCoinFlipItemEffects(result, won) {
+        // Streak Booster
+        if (won && this.activeEffects.streakBooster && this.activeEffects.streakBooster.flips > 0) {
+            this.streak += this.activeEffects.streakBooster.bonus;
+            this.showFloatingText(`+${this.activeEffects.streakBooster.bonus} Streak!`);
+        }
+        
+        // Jackpot Toss - track consecutive results
+        if (this.activeEffects.jackpotToss && this.activeEffects.jackpotToss.flips > 0) {
+            this.activeEffects.jackpotToss.consecutiveHistory.push(result);
+            if (this.activeEffects.jackpotToss.consecutiveHistory.length > 3) {
+                this.activeEffects.jackpotToss.consecutiveHistory.shift();
+            }
+            
+            if (this.activeEffects.jackpotToss.consecutiveHistory.length === 3) {
+                const allSame = this.activeEffects.jackpotToss.consecutiveHistory.every(r => r === this.activeEffects.jackpotToss.consecutiveHistory[0]);
+                if (allSame) {
+                    this.multiplier += this.activeEffects.jackpotToss.multiplier;
+                    this.showFloatingText(`🔥 JACKPOT +${this.activeEffects.jackpotToss.multiplier}x Multiplier!`);
+                }
+            }
+        }
+        
+        // Coin Combo - track consecutive heads
+        if (this.activeEffects.coinCombo && this.activeEffects.coinCombo.flips > 0) {
+            if (result === 'heads') {
+                this.activeEffects.coinCombo.consecutiveHeads++;
+                if (this.activeEffects.coinCombo.consecutiveHeads >= 2) {
+                    this.multiplier += this.activeEffects.coinCombo.multiplier;
+                    this.showFloatingText(`🔥 Combo x${this.activeEffects.coinCombo.multiplier} Active!`);
+                    this.activeEffects.coinCombo.consecutiveHeads = 0;
+                }
+            } else {
+                this.activeEffects.coinCombo.consecutiveHeads = 0;
+            }
+        }
+        
+        // Tail Chain - track consecutive tails
+        if (this.activeEffects.tailChain && this.activeEffects.tailChain.flips > 0) {
+            if (result === 'tails') {
+                this.activeEffects.tailChain.consecutiveTails++;
+                this.multiplier += this.activeEffects.tailChain.bonus;
+                this.showFloatingText(`⚙️ Tail Chain +${this.activeEffects.tailChain.bonus} Multiplier!`);
+            } else {
+                this.activeEffects.tailChain.consecutiveTails = 0;
+            }
+        }
+        
+        // Golden Streak - check for streak milestones
+        if (this.activeEffects.goldenStreak && this.activeEffects.goldenStreak.flips > 0) {
+            if (this.streak > 0 && this.streak % 5 === 0) {
+                // Apply reward multiplier on next win
+                this.activeEffects.goldenStreakBonus = this.activeEffects.goldenStreak.rewardMultiplier;
+                this.showFloatingText(`💰 Golden Streak Bonus!`);
+            }
+        }
+        
+        // Apply Golden Streak bonus if active
+        if (won && this.activeEffects.goldenStreakBonus) {
+            this.score *= this.activeEffects.goldenStreakBonus;
+            delete this.activeEffects.goldenStreakBonus;
+        }
+        
+        // Streak Saver - handle loss protection
+        if (!won && this.activeEffects.streakSaver && this.activeEffects.streakSaver.flips > 0) {
+            if (Math.random() < this.activeEffects.streakSaver.saveChance) {
+                this.showFloatingText(`🛡️ Streak Saved!`);
+                // Don't reset streak - return early to prevent normal loss handling
+                return true; // Indicates streak was saved
+            }
+        }
+        
+        return false; // Normal processing
+    }
+    
+    decreaseFlipCounts() {
+        // Decrease flip counts for all active items
+        Object.keys(this.activeEffects).forEach(key => {
+            const effect = this.activeEffects[key];
+            if (effect && typeof effect === 'object' && effect.flips !== undefined) {
+                effect.flips--;
+                if (effect.flips <= 0) {
+                    delete this.activeEffects[key];
+                    this.showFloatingText(`${key} expired!`);
+                }
+            }
+        });
+        
+        // Update inventory item flip counts
+        this.inventory.forEach(item => {
+            if (item && item.flipsRemaining > 0) {
+                // Check if this item type is active
+                const effectKey = this.getEffectKeyFromItemId(item.id);
+                if (this.activeEffects[effectKey]) {
+                    item.flipsRemaining--;
+                }
+            }
+        });
+    }
+    
+    getEffectKeyFromItemId(itemId) {
+        const mapping = {
+            'lucky_coin': 'luckyCoin',
+            'weighted_tail': 'weightedTail',
+            'double_toss': 'doubleToss',
+            'jackpot_toss': 'jackpotToss',
+            'streak_booster': 'streakBooster',
+            'streak_saver': 'streakSaver',
+            'coin_combo': 'coinCombo',
+            'tail_chain': 'tailChain',
+            'side_master': 'sideMaster',
+            'lucky_surge': 'luckySurge',
+            'golden_streak': 'goldenStreak',
+            'perfect_toss': 'perfectToss'
+        };
+        return mapping[itemId];
+    }
+    
+    showFloatingText(text) {
+        // Create floating text element
+        const floatingText = document.createElement('div');
+        floatingText.className = 'floating-text';
+        floatingText.textContent = text;
+        floatingText.style.cssText = `
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #4ecdc4;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 12px;
+            font-weight: bold;
+            text-shadow: 2px 2px 0px #000;
+            pointer-events: none;
+            z-index: 1000;
+            animation: floatUp 2s ease-out forwards;
+        `;
+        
+        // Add to game container
+        document.getElementById('gameContainer').appendChild(floatingText);
+        
+        // Remove after animation
+        setTimeout(() => {
+            if (floatingText.parentNode) {
+                floatingText.parentNode.removeChild(floatingText);
+            }
+        }, 2000);
+    }
 }
 
-// Add shake animation to CSS dynamically
+// Add animations to CSS dynamically
 const style = document.createElement('style');
 style.textContent = `
     @keyframes shake {
         0%, 100% { transform: translateX(0); }
         25% { transform: translateX(-10px); }
         75% { transform: translateX(10px); }
+    }
+    
+    @keyframes floatUp {
+        0% {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+        50% {
+            opacity: 1;
+            transform: translate(-50%, -70%) scale(1.1);
+        }
+        100% {
+            opacity: 0;
+            transform: translate(-50%, -90%) scale(0.8);
+        }
+    }
+    
+    .depleted {
+        opacity: 0.5;
+        filter: grayscale(100%);
+    }
+    
+    .item-level {
+        font-size: 10px;
+        color: #4ecdc4;
+    }
+    
+    .item-flips {
+        font-size: 10px;
+        color: #ff6b6b;
+    }
+    
+    .item-level-info {
+        font-size: 11px;
+        color: #ffeb3b;
+        margin: 2px 0;
+    }
+    
+    .item-action {
+        font-size: 10px;
+        color: #4ecdc4;
+        font-weight: bold;
+        margin-top: 4px;
+    }
+    
+    .random-events-panel {
+        scrollbar-width: thin;
+        scrollbar-color: #4ecdc4 rgba(0, 0, 0, 0.3);
+    }
+    
+    .random-events-panel::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .random-events-panel::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 3px;
+    }
+    
+    .random-events-panel::-webkit-scrollbar-thumb {
+        background: #4ecdc4;
+        border-radius: 3px;
     }
 `;
 document.head.appendChild(style);
