@@ -2277,3 +2277,15 @@ body {
         padding: 15px;
     }
 }
+
+/* Floating Text Animation */
+@keyframes floatUp {
+    0% {
+        opacity: 1;
+        transform: translate(-50%, -50%) translateY(0);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) translateY(-100px);
+    }
+}
