@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Coin Flip Streak</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="game-container" id="gameContainer">
+        <img src="tabel.png" alt="Table" class="table-image">
+        <div class="title-section">
+            <img src="village.png" alt="Village" class="village-image">
+            <img src="title.png" alt="Coin Flip Streak" class="game-title">
+        </div>
+        
+        <div class="player-info">
+            <span class="player-title" id="playerTitle">NOVICE</span>
+            <span class="player-name" id="playerName">PLAYER</span>
+        </div>
+        
+        <div class="stats-container">
+            <div class="stat-box">
+                <span class="stat-label">SCORE</span>
+                <span class="stat-value" id="score">0</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">STREAK</span>
+                <span class="stat-value" id="streak">0</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">MULTIPLIER</span>
+                <span class="stat-value" id="multiplier">x1.0</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-label">BEST STREAK</span>
+                <span class="stat-value" id="best-streak">0</span>
+            </div>
+        </div>
+        
+        <div class="bank-container">
+            <div class="bank-display">
+                <span class="bank-icon">🏦</span>
+                <span class="bank-label">BANK</span>
+                <span class="bank-value" id="bank">0</span>
+            </div>
+            <button class="pixel-btn bank-btn" id="bankBtn">
+                <span class="btn-text">BANK SCORE</span>
+                <span class="bank-amount" id="bankAmount">(0)</span>
+            </button>
+        </div>
+
+        <div class="coin-container">
+            <canvas id="coinCanvas" width="200" height="200"></canvas>
+            <div class="coin-shadow"></div>
+        </div>
+
+        <div class="choice-container" id="choiceContainer">
+            <button class="pixel-btn choice-btn" data-choice="heads">
+                <span class="btn-text">HEADS</span>
+            </button>
+            <button class="pixel-btn choice-btn" data-choice="tails">
+                <span class="btn-text">TAILS</span>
+            </button>
+        </div>
+
+        <div class="message-container">
+            <p id="message" class="message">CLICK HEADS OR TAILS TO FLIP!</p>
+        </div>
+
+        <div class="result-display" id="resultDisplay">
+            <span id="resultText"></span>
+        </div>
+
+        <button class="pixel-btn reset-btn" id="resetBtn">RESET GAME</button>
+        
+        <div class="button-row">
+            <button class="pixel-btn hall-btn" id="hallBtn">HALL OF FAME</button>
+            <button class="pixel-btn shop-main-btn" id="shopBtn">ITEM SHOP</button>
+            <button class="pixel-btn workshop-btn" id="workshopBtn">WORKSHOP</button>
+            <button class="pixel-btn share-btn" id="shareBtn">SHARE STREAK</button>
+        </div>
+        
+        <!-- Temporary test button -->
+        <div class="button-row" style="margin-top: 10px;">
+            <button class="pixel-btn" id="testBattleBtn" style="background: #ff6b6b;">TEST BATTLE SYSTEM</button>
+        </div>
+    </div>
+    
+    <!-- Streak Announcement Overlay -->
+    <div class="streak-announcement" id="streakAnnouncement">
+        <span id="announcementText"></span>
+    </div>
+    
+    <!-- Hall of Fame Modal -->
+    <div class="modal" id="hallOfFameModal">
+        <div class="modal-content">
+            <h2 class="modal-title">HALL OF FAME</h2>
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="records">MY RECORDS</button>
+                <button class="tab-btn" data-tab="achievements">ACHIEVEMENTS</button>
+            </div>
+            <div class="tab-content active" id="recordsTab">
+                <div id="streakRecords"></div>
+            </div>
+            <div class="tab-content" id="achievementsTab">
+                <div id="achievements"></div>
+            </div>
+            <button class="pixel-btn close-btn" id="closeModal">CLOSE</button>
+        </div>
+    </div>
+    
+    <!-- Item Shop Modal -->
+    <div class="modal" id="shopModal">
+        <div class="shop-content">
+            <h2 class="shop-title">TACTICAL ITEM SHOP</h2>
+            <div class="shop-header">
+                <div class="shop-currency">
+                    <span class="currency-label">BANK:</span>
+                    <span class="currency-value" id="shopBank">0</span>
+                </div>
+                <div class="shop-status">
+                    <span id="shopStatus">STREAK 5+ TO UNLOCK</span>
+                </div>
+            </div>
+            
+            <div class="inventory-section">
+                <h3 class="inventory-title">YOUR ITEMS (MAX 2)</h3>
+                <div class="inventory-slots" id="inventorySlots">
+                    <div class="inventory-slot empty" data-slot="0">
+                        <span class="slot-empty">EMPTY</span>
+                    </div>
+                    <div class="inventory-slot empty" data-slot="1">
+                        <span class="slot-empty">EMPTY</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="shop-items" id="shopItems">
+                <!-- Items will be dynamically generated -->
+            </div>
+            
+            <button class="pixel-btn close-btn" id="closeShop">CLOSE</button>
+        </div>
+    </div>
+    
+    <!-- Active Items Display -->
+    <div class="active-items" id="activeItems">
+        <div class="items-container" id="itemsContainer"></div>
+    </div>
+    
+    <!-- Shop Button (appears at streak milestones) -->
+    <button class="pixel-btn shop-btn floating-shop" id="floatingShopBtn" style="display: none;">
+        <span class="shop-icon">🛍️</span>
+        <span class="shop-text">SHOP UNLOCKED!</span>
+    </button>
+    
+    <!-- Battle Button (appears at battle milestones) -->
+    <button class="pixel-btn battle-btn floating-battle" id="floatingBattleBtn" style="display: none;">
+        <span class="battle-icon">⚔️</span>
+        <span class="battle-text">BATTLE READY!</span>
+    </button>
+    
+    <!-- Workshop Modal -->
+    <div class="modal" id="workshopModal">
+        <div class="workshop-content">
+            <h2 class="workshop-title">COIN WORKSHOP</h2>
+            <div class="workshop-header">
+                <div class="workshop-currency">
+                    <span class="currency-label">BANK:</span>
+                    <span class="currency-value" id="workshopBank">0</span>
+                </div>
+                <div class="workshop-tier">
+                    <span class="tier-label">TIER:</span>
+                    <span class="tier-value" id="workshopTier">1</span>
+                </div>
+            </div>
+            
+            <div class="upgrade-categories">
+                <div class="upgrade-tabs">
+                    <button class="upgrade-tab active" data-category="basic">BASIC</button>
+                    <button class="upgrade-tab" data-category="advanced">ADVANCED</button>
+                    <button class="upgrade-tab" data-category="master">MASTER</button>
+                </div>
+                
+                <div class="upgrades-list" id="upgradesList">
+                    <!-- Upgrades will be dynamically generated -->
+                </div>
+            </div>
+            
+            <div class="upgrade-info">
+                <div class="selected-upgrade" id="selectedUpgrade">
+                    <h3>SELECT AN UPGRADE</h3>
+                    <p>Choose an upgrade to see details</p>
+                </div>
+                <button class="pixel-btn purchase-upgrade-btn" id="purchaseUpgradeBtn" disabled>PURCHASE</button>
+                <button class="pixel-btn refund-btn" id="refundBtn">REFUND MODE</button>
+            </div>
+            
+            <div class="workshop-stats">
+                <h3>CURRENT BONUSES</h3>
+                <div class="bonus-list" id="bonusList"></div>
+            </div>
+            
+            <button class="pixel-btn close-btn" id="closeWorkshop">CLOSE</button>
+        </div>
+    </div>
+    
+    <!-- Battle Mode Modal -->
+    <div class="modal" id="battleModal">
+        <div class="battle-content">
+            <div class="battle-header">
+                <h2 class="battle-title">COIN BATTLE ARENA</h2>
+                <div class="battle-stats">
+                    <span class="battle-wins">WINS: <span id="battleWins">0</span></span>
+                    <span class="boss-defeats">BOSSES: <span id="bossDefeats">0</span></span>
+                </div>
+            </div>
+            
+            <!-- Skill Selection Phase -->
+            <div class="skill-selection-section" id="skillSelectionSection">
+                <div id="skillSelectionContainer">
+                    <!-- Skills will be dynamically populated -->
+                </div>
+            </div>
+            
+            <!-- Opponent Selection -->
+            <div class="opponent-section" id="opponentSection" style="display: none;">
+                <div class="opponent-portrait">
+                    <div class="portrait-frame">
+                        <span class="opponent-avatar" id="opponentAvatar">👤</span>
+                    </div>
+                    <div class="opponent-info">
+                        <h3 class="opponent-name" id="opponentName">OPPONENT</h3>
+                        <p class="opponent-desc" id="opponentDesc">Description</p>
+                    </div>
+                </div>
+                
+                <div class="vs-divider">VS</div>
+                
+                <div class="player-portrait">
+                    <div class="portrait-frame">
+                        <span class="player-avatar">🎮</span>
+                    </div>
+                    <div class="player-info">
+                        <h3 class="player-battle-name" id="playerBattleName">PLAYER</h3>
+                        <p class="player-battle-title" id="playerBattleTitle">TITLE</p>
+                        <div class="player-skills" id="playerSkills">
+                            <!-- Selected skills will be shown here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Static start battle button -->
+                <div class="start-battle-container">
+                    <button class="pixel-btn start-battle-btn" id="finalStartBattleBtn" style="display: none;">START COIN BATTLE!</button>
+                </div>
+            </div>
+            
+            <!-- Battle Phase -->
+            <div class="battle-phase" id="battlePhase" style="display: none;">
+                <div class="battle-arena">
+                    <div class="battle-participant player-side">
+                        <div class="participant-info">
+                            <span class="participant-icon">🎮</span>
+                            <span class="participant-name">PLAYER</span>
+                        </div>
+                        <div class="participant-skills" id="playerBattleSkills">
+                            <!-- Player skills displayed here -->
+                        </div>
+                        <div class="participant-streak">
+                            <span class="streak-label">STREAK</span>
+                            <span class="streak-value" id="playerBattleStreak">0</span>
+                        </div>
+                    </div>
+                    
+                    <div class="battle-center">
+                        <div class="vs-symbol">VS</div>
+                        <canvas id="battleCoinCanvas" width="120" height="120"></canvas>
+                        <div class="battle-controls" id="battleControls">
+                            <button class="pixel-btn battle-choice" data-choice="heads">HEADS</button>
+                            <button class="pixel-btn battle-choice" data-choice="tails">TAILS</button>
+                        </div>
+                    </div>
+                    
+                    <div class="battle-participant opponent-side">
+                        <div class="participant-info">
+                            <span class="participant-icon" id="opponentBattleAvatar">👤</span>
+                            <span class="participant-name" id="opponentBattleName">OPPONENT</span>
+                        </div>
+                        <div class="participant-effects" id="opponentBattleEffects">
+                            <!-- Opponent effects displayed here -->
+                        </div>
+                        <div class="participant-streak">
+                            <span class="streak-label">STREAK</span>
+                            <span class="streak-value" id="opponentBattleStreak">0</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="battle-message" id="battleMessage">MAKE YOUR CHOICE!</div>
+            </div>
+            
+            <!-- Battle Result -->
+            <div class="battle-result" id="battleResult" style="display: none;">
+                <h3 class="result-title" id="battleResultTitle">VICTORY!</h3>
+                <div class="result-rewards" id="battleRewards"></div>
+                <button class="pixel-btn close-battle-btn" id="closeBattleBtn">CONTINUE</button>
+            </div>
+            
+            <button class="pixel-btn skip-battle-btn" id="skipBattleBtn">SKIP BATTLE</button>
+        </div>
+    </div>
+    
+    <!-- Fire Mode Overlay -->
+    <div class="fire-mode-overlay" id="fireModeOverlay"></div>
+    
+    <!-- Epic Celebration Overlay -->
+    <div class="celebration-overlay" id="celebrationOverlay">
+        <canvas id="fireworksCanvas"></canvas>
+        <div class="celebration-text" id="celebrationText"></div>
+    </div>
+    
+    <!-- Epic Fail Overlay -->
+    <div class="epic-fail-overlay" id="epicFailOverlay">
+        <div class="fail-container">
+            <div class="fail-text" id="failText">RIP</div>
+            <div class="fail-streak" id="failStreak">STREAK 0</div>
+            <div class="fail-message" id="failMessage"></div>
+        </div>
+    </div>
+    
+    <!-- Sound Effects (using data URIs for simple beeps) -->
+    <audio id="celebrationSound" preload="auto">
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSl+zPDTgjMGHGS/7+OZURE" type="audio/wav">
+    </audio>
+    
+    <audio id="failSound" preload="auto">
+        <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAADyvmwhBSl+zPDTgjMGHGS/7+OZUREUXrTp66hVFApGn+DyLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFJHfH8N2QQAoCBhYqF" type="audio/wav">
+    </audio>
+
+    <script src="game.js"></script>
+    <script src="battle-system.js"></script>
+    <script src="upgrade-system.js"></script>
+    <script src="random-events.js"></script>
+</body>
+</html>
