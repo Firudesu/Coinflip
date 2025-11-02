@@ -914,7 +914,8 @@ body {
 }
 
 .inventory-slots {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
 }
 
@@ -964,6 +965,11 @@ body {
 }
 
 .item-uses {
+    color: #ffd700;
+    font-size: 8px;
+}
+
+.item-durability {
     color: #ffd700;
     font-size: 8px;
 }
