@@ -301,7 +301,7 @@ CoinFlipGame.prototype.defineRandomEvents = function() {
             effect: 'Just for fun',
             visual: 'mimic',
             execute: () => {
-                this.showEventResult('THE COIN HAS EYES! 👀');
+                this.showEventResult('THE COIN HAS EYES! ??');
                 this.animateMimic();
             }
         },
@@ -396,7 +396,7 @@ CoinFlipGame.prototype.defineRandomEvents = function() {
     };
 };
 
-CoinFlipGame.prototype.checkForRandomEvent = function() {
+CoinFlipGame.prototype.checkForRandomEvent = function(flipContext = {}) {
     // Don't trigger during battles or other special modes
     if (this.battleMode?.battleInProgress || this.eventActive) return false;
     
@@ -409,11 +409,32 @@ CoinFlipGame.prototype.checkForRandomEvent = function() {
     if (this.streak > 30) chance += 0.10;  // +10% at streak 30+
     // Total max chance: 35% at streak 30+
     
+    const multiplier = flipContext.eventChanceMultiplier ?? 1;
+    const bonus = flipContext.eventChanceBonus ?? 0;
+    chance = chance * multiplier + bonus;
+    
+    if (flipContext.cancelEvent) {
+        const reason = flipContext.blockEventReason || 'Event cancelled.';
+        this.showMessage(reason);
+        return false;
+    }
+    
+    const cancelRequests = flipContext.eventCancelRequests || [];
+    const forceTrigger = !!flipContext.forceEventTrigger;
+    
     const roll = Math.random();
     console.log(`Event check: rolled ${roll.toFixed(3)} vs chance ${chance.toFixed(3)}`);
     
-    // Roll for event (FIXED: now correctly using < instead of >)
-    if (roll >= chance) return false;
+    if (!forceTrigger && roll >= chance) return false;
+    
+    if (cancelRequests.length > 0) {
+        const request = cancelRequests.pop();
+        if (typeof this.applyItemHook === 'function') {
+            this.applyItemHook('onEventCheck', flipContext, { triggered: true, cancelled: true });
+        }
+        this.showMessage(request.reason || 'An item cancelled the random event!');
+        return false;
+    }
     
     // Filter available events based on streak
     const availableEvents = Object.entries(this.randomEvents).filter(([key, event]) => {
@@ -435,33 +456,103 @@ CoinFlipGame.prototype.checkForRandomEvent = function() {
     }
     
     // Trigger event
-    this.triggerRandomEvent(selectedEvent[0]);
+    this.triggerRandomEvent(selectedEvent[0], flipContext);
     return true;
 };
 
-CoinFlipGame.prototype.triggerRandomEvent = function(eventKey) {
+CoinFlipGame.prototype.triggerRandomEvent = function(eventKey, flipContext = {}) {
     const event = this.randomEvents[eventKey];
     if (!event) return;
     
+    const eventPayload = {
+        event,
+        context: flipContext,
+        messages: []
+    };
+    
+    if (typeof this.applyItemHook === 'function') {
+        this.applyItemHook('onRandomEvent', eventPayload);
+    }
+    
+    const selectEventByType = (types) => {
+        const candidates = Object.entries(this.randomEvents).filter(([key, evt]) => types.includes(evt.type) && this.streak >= evt.minStreak);
+        if (candidates.length === 0) return null;
+        const [key, value] = candidates[Math.floor(Math.random() * candidates.length)];
+        return { key, value };
+    };
+    
+    let chosenEvent = event;
+    let chosenKey = eventKey;
+    
+    if (eventPayload.convertToPositive) {
+        const positive = selectEventByType(['reward', 'cosmetic']);
+        if (positive) {
+            chosenKey = positive.key;
+            chosenEvent = positive.value;
+        }
+    }
+    
+    if (eventPayload.convertToNegative) {
+        const negative = selectEventByType(['risk', 'mutation', 'legendary']);
+        if (negative) {
+            chosenKey = negative.key;
+            chosenEvent = negative.value;
+        }
+    }
+    
     this.eventActive = true;
-    this.currentEvent = event;
+    this.currentEvent = { ...chosenEvent };
+    eventPayload.event = this.currentEvent;
+    const originalExecute = this.currentEvent.execute?.bind(this);
+    
+    if (typeof this.applyItemHook === 'function') {
+        this.applyItemHook('onEventCheck', flipContext, { triggered: true, event: this.currentEvent });
+    }
+    
+    if (eventPayload.overrideWithReward || eventPayload.overrideWithPenalty) {
+        this.currentEvent.execute = (won) => {
+            if (eventPayload.overrideWithReward && won) {
+                const reward = eventPayload.overrideWithReward;
+                if (reward.type === 'coins') {
+                    const amount = reward.amount || 0;
+                    this.bank += amount;
+                    localStorage.setItem('bank', this.bank);
+                    this.showEventResult(`BONUS REWARD! +${amount} COINS`);
+                }
+            } else if (eventPayload.overrideWithPenalty && !won) {
+                const penalty = eventPayload.overrideWithPenalty;
+                if (penalty.type === 'coins') {
+                    const amount = Math.abs(penalty.amount || 0);
+                    this.bank = Math.max(0, this.bank - amount);
+                    localStorage.setItem('bank', this.bank);
+                    this.showEventResult(`PENALTY! -${amount} COINS`);
+                }
+            } else if (originalExecute) {
+                originalExecute(won);
+            }
+        };
+    }
     
     // Show event notification
-    this.showEventNotification(event);
+    this.showEventNotification(this.currentEvent);
     
     // Apply visual effect
-    this.applyEventVisual(event.visual);
+    this.applyEventVisual(this.currentEvent.visual);
     
     // Store in history
     this.eventHistory.push({
-        name: event.name,
+        name: this.currentEvent.name,
         streak: this.streak,
         timestamp: Date.now()
     });
     
+    if (eventPayload.messages && eventPayload.messages.length > 0) {
+        this.showMessage(eventPayload.messages[eventPayload.messages.length - 1]);
+    }
+    
     // Some events execute immediately, others after flip
-    if (event.type === 'skill' || event.type === 'encounter') {
-        event.execute();
+    if (this.currentEvent.type === 'skill' || this.currentEvent.type === 'encounter') {
+        this.currentEvent.execute();
     }
 };
 
@@ -488,15 +579,15 @@ CoinFlipGame.prototype.showEventNotification = function(event) {
 
 CoinFlipGame.prototype.getEventIcon = function(type) {
     const icons = {
-        mutation: '🎲',
-        reward: '🎁',
-        risk: '⚠️',
-        skill: '🎯',
-        encounter: '👤',
-        cosmetic: '✨',
-        legendary: '👑'
+        mutation: '??',
+        reward: '??',
+        risk: '??',
+        skill: '??',
+        encounter: '??',
+        cosmetic: '?',
+        legendary: '??'
     };
-    return icons[type] || '❓';
+    return icons[type] || '?';
 };
 
 CoinFlipGame.prototype.applyEventVisual = function(visual) {

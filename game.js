@@ -37,6 +37,7 @@ class CoinFlipGame {
             flipCount: 0
         };
         this.lossStreak = 0;
+        this.lastWinDetails = null;
         this.shopItems = this.defineShopItems();
         
         // Titles based on best streak
@@ -339,8 +340,13 @@ class CoinFlipGame {
                 this.multiplier = 1.0 + (this.streak * multiplierGrowth);
             }
             
-            const points = Math.round(this.basePoints * this.multiplier);
+            const points = Math.round(this.basePoints * this.multiplier * rewardMultiplier);
             this.score += points;
+            this.lastWinDetails = {
+                points,
+                multiplierGrowth,
+                rewardMultiplier
+            };
             
             // Apply doubletap core (bonus every 5th win)
             if (this.activeEffects.doubletapCore && this.streak % 5 === 0) {
@@ -379,10 +385,12 @@ class CoinFlipGame {
             
             // Add visual effects
             this.celebrateWin();
+            this.lossStreak = 0;
         } else {
             // Show what was lost
             const lostScore = this.score;
             const lostStreak = this.streak;
+            this.lastWinDetails = null;
             
             // Check streak saver upgrade
             if (this.getUpgradeBonus && Math.random() < this.getUpgradeBonus('streakSaver')) {
@@ -475,6 +483,7 @@ class CoinFlipGame {
             
             // Clear some active effects
             delete this.activeEffects.freezeMultiplier;
+            this.lossStreak += 1;
         }
         
         this.updateDisplay();
@@ -2412,6 +2421,9 @@ Play at: ${window.location.href}`;
             won: result === this.playerChoice,
             context
         };
+        payload.upcomingStreak = this.streak + (payload.won ? 1 : 0);
+        payload.upcomingLossStreak = this.lossStreak + (payload.won ? 0 : 1);
+        payload.upcomingFlipCount = this.itemRuntimeState.flipCount + 1;
         
         this.applyItemHook('onResult', payload);
         
@@ -2456,6 +2468,10 @@ Play at: ${window.location.href}`;
         this.itemRuntimeState.flipCount += 1;
         
         this.applyItemHook('onFlipEnd', context);
+        const brokenMessages = this.consumeItemDurability(context);
+        if (brokenMessages.length > 0) {
+            this.showMessage(brokenMessages[brokenMessages.length - 1]);
+        }
         this.updateInventoryDisplay();
     }
     
@@ -2488,6 +2504,31 @@ Play at: ${window.location.href}`;
             this.showMessage('DOUBLE OR NOTHING BACKFIRED! REWARD HALVED.');
             this.updateDisplay();
         }
+    }
+    
+    consumeItemDurability(context) {
+        const messages = [];
+        this.forEachActiveItem((item, index) => {
+            const max = item.maxDurability ?? item.durability ?? null;
+            if (item.remainingDurability == null && max != null) {
+                item.remainingDurability = max;
+            }
+            const forceBreakReason = item.state?.forceBreak;
+            if (forceBreakReason) {
+                this.inventory[index] = null;
+                messages.push(forceBreakReason);
+                delete item.state.forceBreak;
+                return;
+            }
+            if (item.remainingDurability != null) {
+                item.remainingDurability = Math.max(0, item.remainingDurability - 1);
+                if (item.remainingDurability <= 0) {
+                    this.inventory[index] = null;
+                    messages.push(`${item.name} has broken.`);
+                }
+            }
+        });
+        return messages;
     }
     
     purchaseItem(item, price) {
