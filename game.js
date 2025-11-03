@@ -1385,7 +1385,7 @@ Play at: ${window.location.href}`;
             const item = {
                 id: config.id,
                 name: config.name,
-                icon: config.icon || '??',
+                icon: config.icon || '🪙',
                 description: config.description,
                 effect: config.effect,
                 rarity: config.rarity,
@@ -1410,7 +1410,7 @@ Play at: ${window.location.href}`;
             makeItem({
                 id: 'lucky_thumb',
                 name: 'Lucky Thumb',
-                icon: '??',
+                icon: '👍',
                 rarity: 'common',
                 durability: 20,
                 description: 'Makes heads slightly more likely but can break if luck turns bad.',
@@ -1437,7 +1437,7 @@ Play at: ${window.location.href}`;
             makeItem({
                 id: 'bent_penny',
                 name: 'Bent Penny',
-                icon: '??',
+                icon: '🪙',
                 rarity: 'common',
                 durability: 25,
                 description: 'Favors tails and gives small payouts when you land tails.',
@@ -1456,7 +1456,7 @@ Play at: ${window.location.href}`;
             makeItem({
                 id: 'weighted_edge',
                 name: 'Weighted Edge',
-                icon: '??',
+                icon: '⚖️',
                 rarity: 'uncommon',
                 durability: 15,
                 description: 'Balances your coin odds so both sides become fairer.',
@@ -1487,7 +1487,7 @@ Play at: ${window.location.href}`;
             makeItem({
                 id: 'double_or_nothing',
                 name: 'Double or Nothing',
-                icon: '??',
+                icon: '🎲',
                 rarity: 'rare',
                 durability: 12,
                 description: 'Occasionally gives you double credit on a flip.',
@@ -1513,7 +1513,7 @@ Play at: ${window.location.href}`;
             makeItem({
                 id: 'burnt_coin',
                 name: 'Burnt Coin',
-                icon: '??',
+                icon: '🔥',
                 rarity: 'uncommon',
                 durability: 18,
                 description: 'Makes you less lucky but pays out more when you win.',
@@ -1527,7 +1527,7 @@ Play at: ${window.location.href}`;
             makeItem({
                 id: 'counterfeit_coin',
                 name: 'Counterfeit Coin',
-                icon: '??',
+                icon: '💸',
                 rarity: 'uncommon',
                 durability: 25,
                 description: 'Protects you from bad random events occasionally.',
@@ -1564,8 +1564,8 @@ Play at: ${window.location.href}`;
             }),
             makeItem({
                 id: 'rabbits_foot',
-                name: 'Rabbit?s Foot',
-                icon: '??',
+                name: 'Rabbit\'s Foot',
+                icon: '🐇',
                 rarity: 'common',
                 durability: 20,
                 description: 'Rewards you after a losing streak by improving heads.',
@@ -1583,7 +1583,7 @@ Play at: ${window.location.href}`;
                     } else if (payload.result === 'heads') {
                         item.state.headsBoost = 0;
                     }
-                    if (mult < 0 && item.state.headsBoost) {
+                    if (mult < 0 && item.state.headsBoost > 0) {
                         item.state.headsBoost = Math.min(item.state.headsBoost, 0.3);
                     }
                 }
@@ -1591,7 +1591,7 @@ Play at: ${window.location.href}`;
             makeItem({
                 id: 'rusty_nickel',
                 name: 'Rusty Nickel',
-                icon: '??',
+                icon: '🪙',
                 rarity: 'common',
                 durability: 30,
                 description: 'Lasts a while but might suddenly break.',
@@ -1605,17 +1605,17 @@ Play at: ${window.location.href}`;
                         item.state.forceBreak = 'Rusty Nickel crumbled from age.';
                     }
                     if (mult < 0 && Math.random() < 0.1) {
-                        item.remainingDurability = Math.min(
-                            item.maxDurability ?? item.durability,
-                            (item.remainingDurability ?? item.durability) + 5
-                        );
+                        const max = item.maxDurability ?? item.durability;
+                        if (max != null) {
+                            item.remainingDurability = Math.min(max, (item.remainingDurability || max) + 5);
+                        }
                     }
                 }
             }),
             makeItem({
                 id: 'mirror_coin',
                 name: 'Mirror Coin',
-                icon: '??',
+                icon: '🪞',
                 rarity: 'uncommon',
                 durability: 18,
                 description: 'Prevents long bad streaks by forcing a heads.',
@@ -1658,7 +1658,7 @@ Play at: ${window.location.href}`;
             makeItem({
                 id: 'magnet_token',
                 name: 'Magnet Token',
-                icon: '??',
+                icon: '🧲',
                 rarity: 'rare',
                 durability: 15,
                 description: 'Always blocks random events while active.',
@@ -1676,7 +1676,7 @@ Play at: ${window.location.href}`;
             makeItem({
                 id: 'weighted_decision',
                 name: 'Weighted Decision',
-                icon: '??',
+                icon: '📊',
                 rarity: 'uncommon',
                 durability: 25,
                 description: 'Makes events rarer and slightly improves luck.',
@@ -1690,7 +1690,7 @@ Play at: ${window.location.href}`;
             makeItem({
                 id: 'fortune_band',
                 name: 'Fortune Band',
-                icon: '???',
+                icon: '🎗️',
                 rarity: 'common',
                 durability: 25,
                 description: 'Rewards consecutive wins.',
@@ -1705,7 +1705,7 @@ Play at: ${window.location.href}`;
             makeItem({
                 id: 'chaos_token',
                 name: 'Chaos Token',
-                icon: '??',
+                icon: '🌀',
                 rarity: 'rare',
                 durability: 20,
                 description: 'Sometimes flips your result to the opposite but pays big.',
@@ -1714,23 +1714,16 @@ Play at: ${window.location.href}`;
                     const mult = getMultiplier(item);
                     if (Math.random() >= 0.1) return;
                     payload.context.messages = payload.context.messages || [];
-                    if (mult > 0) {
-                        payload.context.messages.push('Chaos Token flips fate!');
-                        payload.result = payload.result === 'heads' ? 'tails' : 'heads';
-                        payload.won = payload.result === payload.playerChoice;
-                        payload.context.rewardMultiplier *= 2;
-                    } else {
-                        payload.context.messages.push('Chaos Token backlash!');
-                        payload.result = payload.result === 'heads' ? 'tails' : 'heads';
-                        payload.won = payload.result === payload.playerChoice;
-                        payload.context.rewardMultiplier *= 0.5;
-                    }
+                    payload.context.messages.push(mult > 0 ? 'Chaos Token flips fate!' : 'Chaos Token backlash!');
+                    payload.result = payload.result === 'heads' ? 'tails' : 'heads';
+                    payload.won = payload.result === payload.playerChoice;
+                    payload.context.rewardMultiplier *= mult > 0 ? 2 : 0.5;
                 }
             }),
             makeItem({
                 id: 'silver_edge',
                 name: 'Silver Edge',
-                icon: '???',
+                icon: '🗡️',
                 rarity: 'rare',
                 durability: 25,
                 description: 'Strong item that might shatter anytime.',
@@ -1749,7 +1742,7 @@ Play at: ${window.location.href}`;
             makeItem({
                 id: 'black_coin',
                 name: 'Black Coin',
-                icon: '?',
+                icon: '⚫',
                 rarity: 'legendary',
                 durability: 1,
                 description: 'Saves you from one loss, then disappears.',
@@ -1775,8 +1768,8 @@ Play at: ${window.location.href}`;
             }),
             makeItem({
                 id: 'tricksters_charm',
-                name: 'Trickster?s Charm',
-                icon: '??',
+                name: 'Trickster\'s Charm',
+                icon: '🃏',
                 rarity: 'uncommon',
                 durability: 15,
                 description: 'Turns some bad events into good ones.',
@@ -1789,18 +1782,18 @@ Play at: ${window.location.href}`;
                     eventPayload.messages = eventPayload.messages || [];
                     if (mult > 0 && !isPositive && Math.random() < 0.5) {
                         eventPayload.convertToPositive = true;
-                        eventPayload.messages.push('Trickster?s Charm flipped the event!');
+                        eventPayload.messages.push('Trickster\'s Charm flipped the event!');
                     }
                     if (mult < 0 && isPositive && Math.random() < 0.5) {
                         eventPayload.convertToNegative = true;
-                        eventPayload.messages.push('Trickster?s Charm corrupted the event!');
+                        eventPayload.messages.push('Trickster\'s Charm corrupted the event!');
                     }
                 }
             }),
             makeItem({
                 id: 'golden_flick',
                 name: 'Golden Flick',
-                icon: '??',
+                icon: '🌟',
                 rarity: 'common',
                 durability: 20,
                 description: 'Simple extra money from heads.',
@@ -1815,11 +1808,11 @@ Play at: ${window.location.href}`;
             makeItem({
                 id: 'cursed_penny',
                 name: 'Cursed Penny',
-                icon: '??',
+                icon: '☠️',
                 rarity: 'rare',
                 durability: 18,
                 description: 'High rewards but invites trouble.',
-                effect: '+25% reward. Doubles event chance.',
+                effect: '+25% reward, doubles random event chance.',
                 onPreFlip(context, game, item) {
                     const mult = getMultiplier(item);
                     context.rewardMultiplier *= 1 + (0.25 * mult);
@@ -1829,7 +1822,7 @@ Play at: ${window.location.href}`;
             makeItem({
                 id: 'echo_coin',
                 name: 'Echo Coin',
-                icon: '??',
+                icon: '🔁',
                 rarity: 'uncommon',
                 durability: 15,
                 description: 'Creates predictable patterns to plan around.',
@@ -1839,7 +1832,7 @@ Play at: ${window.location.href}`;
                     const mult = getMultiplier(item);
                     item.state.flips = (item.state.flips || 0) + 1;
                     if (item.state.flips % 3 !== 0) return;
-                    const last = game.lastFlipResult;
+                    const last = game.itemRuntimeState?.lastFlipResult;
                     if (!last) return;
                     context.forceResult = mult > 0 ? last : (last === 'heads' ? 'tails' : 'heads');
                 }
@@ -1847,11 +1840,11 @@ Play at: ${window.location.href}`;
             makeItem({
                 id: 'fractured_edge',
                 name: 'Fractured Edge',
-                icon: '??',
+                icon: '🪓',
                 rarity: 'common',
                 durability: 25,
                 description: 'Makes luck swing back and forth.',
-                effect: 'Tails: -5% heads next turn; Heads: +5%.',
+                effect: 'On tails: -5% heads next turn; on heads: +5%.',
                 initState: () => ({ nextHeadModifier: 0 }),
                 onPreFlip(context, game, item) {
                     if (item.state.nextHeadModifier) {
@@ -1864,7 +1857,7 @@ Play at: ${window.location.href}`;
                     } else if (payload.result === 'tails') {
                         item.state.nextHeadModifier = -0.05;
                     }
-                    if (getMultiplier(item) < 0 && item.state.nextHeadModifier) {
+                    if (getMultiplier(item) < 0 && item.state.nextHeadModifier !== 0) {
                         item.state.nextHeadModifier *= -1;
                     }
                 }
@@ -1872,7 +1865,7 @@ Play at: ${window.location.href}`;
             makeItem({
                 id: 'coin_purse',
                 name: 'Coin Purse',
-                icon: '??',
+                icon: '👛',
                 rarity: 'common',
                 durability: 10,
                 description: 'Quick money maker but burns out fast.',
@@ -1885,11 +1878,11 @@ Play at: ${window.location.href}`;
             makeItem({
                 id: 'glass_coin',
                 name: 'Glass Coin',
-                icon: '??',
+                icon: '🧊',
                 rarity: 'rare',
                 durability: 1,
                 description: 'High-risk, single-use power boost.',
-                effect: '+20% heads but breaks if tails.',
+                effect: '+20% heads but breaks instantly on tails.',
                 onPreFlip(context, game, item) {
                     context.headsChance += 0.20 * getMultiplier(item);
                 },
@@ -1897,14 +1890,14 @@ Play at: ${window.location.href}`;
                     const mult = getMultiplier(item);
                     const breakSide = mult > 0 ? 'tails' : 'heads';
                     if (payload.result === breakSide) {
-                        item.state.forceBreak = 'The Glass Coin shattered.';
+                        item.state.forceBreak = 'Glass Coin shattered from the impact.';
                     }
                 }
             }),
             makeItem({
                 id: 'collectors_token',
-                name: 'Collector?s Token',
-                icon: '???',
+                name: 'Collector\'s Token',
+                icon: '🎟️',
                 rarity: 'rare',
                 durability: 20,
                 description: 'Encourages you to fill all four slots.',
@@ -1918,11 +1911,11 @@ Play at: ${window.location.href}`;
             makeItem({
                 id: 'clover_band',
                 name: 'Clover Band',
-                icon: '??',
+                icon: '🍀',
                 rarity: 'uncommon',
                 durability: 15,
                 description: 'Helps you recover after bad luck.',
-                effect: '+10% heads if previous flip was tails.',
+                effect: '+10% heads if last flip was tails.',
                 onPreFlip(context, game, item) {
                     const mult = getMultiplier(item);
                     const targetLast = mult > 0 ? 'tails' : 'heads';
@@ -1934,11 +1927,11 @@ Play at: ${window.location.href}`;
             makeItem({
                 id: 'magpie_feather',
                 name: 'Magpie Feather',
-                icon: '??',
+                icon: '🪶',
                 rarity: 'uncommon',
                 durability: 20,
                 description: 'Rewards streak play.',
-                effect: 'On 3-win streak, +5 coins.',
+                effect: 'Win 3 in a row to gain +5 coins.',
                 onAfterResult(payload, game, item) {
                     const mult = getMultiplier(item);
                     if (payload.won && game.streak > 0 && game.streak % 3 === 0) {
@@ -1949,11 +1942,11 @@ Play at: ${window.location.href}`;
             makeItem({
                 id: 'fate_chip',
                 name: 'Fate Chip',
-                icon: '??',
+                icon: '🎰',
                 rarity: 'rare',
                 durability: 25,
                 description: 'Turns bad events into bonuses.',
-                effect: 'Negative events give +2 coins instead of penalties.',
+                effect: 'Each random event gives +2 coins instead of penalty.',
                 onRandomEvent(eventPayload, game, item) {
                     const mult = getMultiplier(item);
                     if (!eventPayload?.event) return;
@@ -1970,7 +1963,7 @@ Play at: ${window.location.href}`;
             makeItem({
                 id: 'counter_token',
                 name: 'Counter Token',
-                icon: '???',
+                icon: '🛡️',
                 rarity: 'rare',
                 durability: 25,
                 description: 'Reliable defense item.',
@@ -2000,11 +1993,11 @@ Play at: ${window.location.href}`;
             makeItem({
                 id: 'coin_splitter',
                 name: 'Coin Splitter',
-                icon: '??',
+                icon: '✂️',
                 rarity: 'rare',
                 durability: 10,
                 description: 'Gives extra chance to win sometimes.',
-                effect: '10% chance to flip twice and keep the best result.',
+                effect: '10% chance to flip twice and take best result.',
                 initState: () => ({ triggered: false }),
                 onPreFlip(context, game, item) {
                     const mult = getMultiplier(item);
@@ -2023,7 +2016,7 @@ Play at: ${window.location.href}`;
             makeItem({
                 id: 'mercy_coin',
                 name: 'Mercy Coin',
-                icon: '??',
+                icon: '🙏',
                 rarity: 'rare',
                 durability: 15,
                 description: 'Stops you from getting crushed by bad luck.',
@@ -2043,92 +2036,18 @@ Play at: ${window.location.href}`;
             makeItem({
                 id: 'entropy_shard',
                 name: 'Entropy Shard',
-                icon: '??',
+                icon: '💠',
                 rarity: 'legendary',
                 durability: 20,
-                description: 'Makes your items chaotic ? effects invert randomly.',
-                effect: 'Each round, inverts one equipped item?s effect.',
+                description: 'Makes your items chaotic — effects invert randomly.',
+                effect: 'Each round, inverts one equipped item’s effect.',
                 initState: () => ({ target: null, previousInversion: false }),
                 onPreFlip(context, game, item) {
-                    const mult = getMultiplier(item);
                     if (item.state.target && item.state.target.state) {
                         item.state.target.state.inverted = item.state.previousInversion;
                         item.state.target = null;
                     }
-                    if (mult < 0) {
-                        return;
-                    }
-                    const activeItems = context.activeItems ?? game.inventory.filter(Boolean);
-                    const candidates = activeItems.filter(inst => inst !== item);
-                    if (candidates.length === 0) return;
-                    const target = candidates[Math.floor(Math.random() * candidates.length)];
-                    target.state = target.state || {};
-                    item.state.previousInversion = !!target.state.inverted;
-                    target.state.inverted = !target.state.inverted;
-                    item.state.target = target;
-                    context.messages = context.messages || [];
-                    context.messages.push(`Entropy Shard warps ${target.name}!`);
-                },
-                onFlipEnd(context, game, item) {
-                    if (item.state.target && item.state.target.state) {
-                        item.state.target.state.inverted = item.state.previousInversion;
-                        item.state.target = null;
-                    }
-                }
-            })
-        ];
-    }
-                initState: () => ({ triggered: false }),
-                onPreFlip(context, game, item) {
-                    const mult = getMultiplier(item);
-                    item.state.triggered = Math.random() < 0.1;
-                    if (!item.state.triggered) return;
-                    if (mult > 0) {
-                        context.coinSplitter = true;
-                    } else {
-                        context.coinSplitterPenalty = true;
-                    }
-                },
-                onFlipEnd(context, game, item) {
-                    item.state.triggered = false;
-                }
-            }),
-            makeItem({
-                id: 'mercy_coin',
-                name: 'Mercy Coin',
-                icon: '??',
-                rarity: 'rare',
-                durability: 15,
-                description: 'Stops you from getting crushed by bad luck.',
-                effect: 'Prevents losing streaks longer than 3 by forcing a win.',
-                onResult(payload, game, item) {
-                    const mult = getMultiplier(item);
-                    if (mult > 0 && !payload.won && game.lossStreak >= 3) {
-                        payload.forceWin = true;
-                        item.state.forceBreak = 'Mercy Coin prevented another loss.';
-                    }
-                    if (mult < 0 && payload.won && game.streak >= 3) {
-                        payload.forceLoss = true;
-                        item.state.forceBreak = 'Mercy Coin demanded a loss.';
-                    }
-                }
-            }),
-            makeItem({
-                id: 'entropy_shard',
-                name: 'Entropy Shard',
-                icon: '??',
-                rarity: 'legendary',
-                durability: 20,
-                description: 'Makes your items chaotic ? effects invert randomly.',
-                effect: 'Each round, inverts one equipped item?s effect.',
-                initState: () => ({ target: null, previousInversion: false }),
-                onPreFlip(context, game, item) {
-                    const mult = getMultiplier(item);
-                    if (item.state.target && item.state.target.state) {
-                        item.state.target.state.inverted = item.state.previousInversion;
-                        item.state.target = null;
-                    }
-                    if (mult < 0) {
+                    if (getMultiplier(item) < 0) {
                         return;
                     }
                     const activeItems = context.activeItems ?? game.inventory.filter(Boolean);
