@@ -26,11 +26,16 @@ class CoinFlipGame {
         this.coinEffects = [];
         
         // Shop system
-        this.inventory = [null, null]; // Max 2 items
-        this.shopUnlocked = false;
-        this.shopAvailable = false; // Whether shop can be opened at current streak
-        this.lastShopStreak = 0;
+        this.maxInventorySlots = 4;
+        this.inventory = new Array(this.maxInventorySlots).fill(null);
+        this.shopUnlocked = true;
         this.activeEffects = {}; // Track active item effects
+        this.itemRuntimeState = {
+            lastFlipResult: null,
+            flipCount: 0
+        };
+        this.lossStreak = 0;
+        this.lastWinDetails = null;
         this.shopItems = this.defineShopItems();
         
         // Titles based on best streak
@@ -64,7 +69,8 @@ class CoinFlipGame {
         this.bank = parseInt(localStorage.getItem('bank') || '0');
         this.streakRecords = JSON.parse(localStorage.getItem('streakRecords') || '[]');
         this.achievements = JSON.parse(localStorage.getItem('achievements') || '{}');
-        this.shopUnlocked = localStorage.getItem('shopUnlocked') === 'true';
+        this.shopUnlocked = true;
+        localStorage.setItem('shopUnlocked', 'true');
         
         // Update title based on best streak
         this.updatePlayerTitle();
@@ -131,16 +137,9 @@ class CoinFlipGame {
             this.shareStreak();
         });
         
-        // Shop button - only works when shop is available
+        // Shop button
         document.getElementById('shopBtn').addEventListener('click', () => {
-            if (this.shopAvailable || this.streak === this.lastShopStreak) {
-                this.openShop();
-            } else if (!this.shopUnlocked) {
-                this.showMessage('SHOP UNLOCKS AT 5 STREAK!');
-            } else {
-                const nextShop = this.getNextShopStreak();
-                this.showMessage(`SHOP REOPENS AT STREAK ${nextShop}!`);
-            }
+            this.openShop();
         });
         
         // Floating shop button
@@ -152,7 +151,6 @@ class CoinFlipGame {
         // Close shop button - marks shop as used for this streak
         document.getElementById('closeShop').addEventListener('click', () => {
             document.getElementById('shopModal').classList.remove('show');
-            this.shopAvailable = false;  // Shop is now closed until next milestone
             document.getElementById('floatingShopBtn').style.display = 'none';
         });
         
@@ -170,8 +168,9 @@ class CoinFlipGame {
         });
         
         // Inventory slots
-        document.querySelectorAll('.inventory-slot').forEach((slot, index) => {
+        document.querySelectorAll('.inventory-slot').forEach(slot => {
             slot.addEventListener('click', () => {
+                const index = parseInt(slot.dataset.slot, 10);
                 this.useItem(index);
             });
         });
@@ -187,9 +186,12 @@ class CoinFlipGame {
     flipCoin() {
         if (this.isFlipping) return;
         
+        const context = this.buildFlipContext();
+        this.currentFlipContext = context;
+        
         // Check for random event before flip
         if (this.checkForRandomEvent) {
-            const eventTriggered = this.checkForRandomEvent();
+            const eventTriggered = this.checkForRandomEvent(context);
             if (eventTriggered) {
                 console.log('Random event triggered!');
             }
@@ -201,50 +203,20 @@ class CoinFlipGame {
         this.canvas.classList.add('flipping', 'disabled');
         document.getElementById('choiceContainer').classList.add('hidden');
         
-        // Determine result with item effects and upgrades
-        let winChance = 0.5;
-        
-        // Apply upgrade bonus
-        if (this.getUpgradeBonus) {
-            winChance += this.getUpgradeBonus('winChance');
-        }
-        
-        // Apply prediction buff
-        if (this.activeEffects.predictionBuff) {
-            winChance += this.activeEffects.predictionBuff;
-        }
-        
-        // Apply steady core
-        if (this.activeEffects.steadyCore) {
-            winChance += 0.08;
-        }
-        
-        // Apply edge bias
-        if (this.activeEffects.edgeBias) {
-            const edgeBiasTier = Math.min(this.activeEffects.edgeBias, 4);
-            const edgeBiasValues = [0.01, 0.02, 0.03, 0.05];
-            winChance += edgeBiasValues[edgeBiasTier - 1];
-        }
-        
-        // Apply coin of paradox
-        if (this.activeEffects.coinParadox) {
-            winChance += 0.08;
-        }
-        
-        // Apply lucky charm (guaranteed win)
-        if (this.activeEffects.luckyCharm) {
-            winChance = 1;
-            this.activeEffects.luckyCharm = false;
-        }
-        
-        let result = Math.random() < winChance ? this.playerChoice : 
-                     (this.playerChoice === 'heads' ? 'tails' : 'heads');
+        const payload = this.determineFlipOutcome(context);
+        const result = payload.result;
         
         const willLose = result !== this.playerChoice;
         const isEpicMoment = this.streak >= 10 && willLose;
         
         // Apply tactical delay
         const hasDelay = this.activeEffects.tacticalDelay > 0;
+        
+        if (context.messages && context.messages.length > 0) {
+            this.showMessage(context.messages[context.messages.length - 1]);
+        }
+        
+        this.pendingFlipPayload = payload;
         
         // Enhanced animation parameters (slow motion for epic fails)
         let frame = 0;
@@ -305,12 +277,14 @@ class CoinFlipGame {
                 this.coinSide = result;
                 this.coinRotation = 0;
                 this.drawCoin();
-                this.handleResult(result);
+                const finalPayload = this.pendingFlipPayload || { result, context };
+                this.pendingFlipPayload = null;
+                this.finalizeFlipOutcome(finalPayload);
             }
         }, flipSpeed);
     }
     
-    handleResult(result) {
+    handleResult(result, context = {}) {
         const won = result === this.playerChoice;
         
         // Process active event if any
@@ -322,6 +296,7 @@ class CoinFlipGame {
         
         if (won) {
             this.streak++;
+            const rewardMultiplier = context.rewardMultiplier ?? 1;
             
             // Apply greed gauge
             let multiplierGrowth = 0.1;
@@ -356,8 +331,13 @@ class CoinFlipGame {
                 this.multiplier = 1.0 + (this.streak * multiplierGrowth);
             }
             
-            const points = Math.round(this.basePoints * this.multiplier);
+            const points = Math.round(this.basePoints * this.multiplier * rewardMultiplier);
             this.score += points;
+            this.lastWinDetails = {
+                points,
+                multiplierGrowth,
+                rewardMultiplier
+            };
             
             // Apply doubletap core (bonus every 5th win)
             if (this.activeEffects.doubletapCore && this.streak % 5 === 0) {
@@ -396,10 +376,12 @@ class CoinFlipGame {
             
             // Add visual effects
             this.celebrateWin();
+            this.lossStreak = 0;
         } else {
             // Show what was lost
             const lostScore = this.score;
             const lostStreak = this.streak;
+            this.lastWinDetails = null;
             
             // Check streak saver upgrade
             if (this.getUpgradeBonus && Math.random() < this.getUpgradeBonus('streakSaver')) {
@@ -492,6 +474,7 @@ class CoinFlipGame {
             
             // Clear some active effects
             delete this.activeEffects.freezeMultiplier;
+            this.lossStreak += 1;
         }
         
         this.updateDisplay();
@@ -910,26 +893,6 @@ class CoinFlipGame {
             this.showStreakAnnouncement();
         }
         
-        // Shop unlocks at streak 5 and opens immediately
-        if (this.streak === 5 && !this.shopUnlocked) {
-            this.shopUnlocked = true;
-            this.lastShopStreak = 5;
-            localStorage.setItem('shopUnlocked', 'true');
-            this.showShopUnlock();
-            // Open shop automatically on first unlock
-            setTimeout(() => {
-                this.openShop();
-            }, 2000);
-        }
-        
-        // Shop reopens every 3 streaks after being unlocked (8, 11, 14, 17, 20, etc.)
-        if (this.shopUnlocked && this.streak > 5 && (this.streak - 5) % 3 === 0) {
-            // Shop is now available at this streak
-            this.shopAvailable = true;
-            this.lastShopStreak = this.streak;
-            this.showShopAvailable();
-        }
-        
         // Enable fire mode at streak 10
         if (this.streak === 10) {
             this.enableFireMode();
@@ -1187,7 +1150,7 @@ class CoinFlipGame {
             totalAchievements: this.achievementDefs.length
         };
         
-        const message = `🎮 COIN FLIP STREAK
+        const message = `?? COIN FLIP STREAK
 ${shareData.title}
 Current Streak: ${shareData.streak}
 Best Streak: ${shareData.bestStreak}
@@ -1411,252 +1374,711 @@ Play at: ${window.location.href}`;
     
     // Shop System Methods
     defineShopItems() {
+        const priceByRarity = {
+            common: 450,
+            uncommon: 900,
+            rare: 1700,
+            legendary: 3200
+        };
+        
+        const makeItem = (config) => {
+            const item = {
+                id: config.id,
+                name: config.name,
+                icon: config.icon || '🪙',
+                description: config.description,
+                effect: config.effect,
+                rarity: config.rarity,
+                durability: config.durability,
+                price: config.price ?? priceByRarity[config.rarity] ?? 1200,
+                initState: config.initState || (() => ({}))
+            };
+            
+            if (config.onPreFlip) item.onPreFlip = config.onPreFlip;
+            if (config.onResult) item.onResult = config.onResult;
+            if (config.onAfterResult) item.onAfterResult = config.onAfterResult;
+            if (config.onEventCheck) item.onEventCheck = config.onEventCheck;
+            if (config.onRandomEvent) item.onRandomEvent = config.onRandomEvent;
+            if (config.onFlipEnd) item.onFlipEnd = config.onFlipEnd;
+            
+            return item;
+        };
+        
+        const getMultiplier = (item) => (item?.state?.inverted ? -1 : 1);
+        
         return [
-            {
-                id: 'core_greed_engine',
-                name: 'Greed Engine',
-                icon: '⚙️',
-                description: 'Increase per-win multiplier growth from 0.1 to 0.15',
-                effect: 'Core equipment',
-                price: 3000,
-                rarity: 'rare',
-                category: 'Core',
-                type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { multiplier_gain: 0.15 },
-                apply: () => {
-                    this.activeEffects.greedEngine = true;
-                    this.showMessage('GREED ENGINE ACTIVE! +0.15 MULTIPLIER GAIN!');
-                }
-            },
-            {
-                id: 'core_steady',
-                name: 'Steady Core',
-                icon: '🎯',
-                description: 'Increase base win chance by +8%',
-                effect: 'Core equipment',
-                price: 3000,
-                rarity: 'rare',
-                category: 'Core',
-                type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { win_chance: 0.08 },
-                apply: () => {
-                    this.activeEffects.steadyCore = true;
-                    this.showMessage('STEADY CORE ACTIVE! +8% WIN CHANCE!');
-                }
-            },
-            {
-                id: 'core_doubletap',
-                name: 'Doubletap Core',
-                icon: '💥',
-                description: 'Every 5th correct flip counts as an extra win',
-                effect: 'Core equipment',
-                price: 7500,
-                rarity: 'epic',
-                category: 'Core',
-                type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { bonus_interval: 5 },
-                apply: () => {
-                    this.activeEffects.doubletapCore = true;
-                    this.showMessage('DOUBLETAP CORE ACTIVE! BONUS EVERY 5TH WIN!');
-                }
-            },
-            {
-                id: 'mod_double_streak',
-                name: 'Double Streak',
-                icon: '📈',
-                description: 'Doubles per-win multiplier gain',
-                effect: 'Modifier equipment',
-                price: 4500,
-                rarity: 'rare',
-                category: 'Modifier',
-                type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { multiplier_x: 2 },
-                apply: () => {
-                    this.activeEffects.doubleStreak = true;
-                    this.showMessage('DOUBLE STREAK ACTIVE! 2X MULTIPLIER GAIN!');
-                }
-            },
-            {
-                id: 'mod_streak_saver',
-                name: 'Streak Saver',
-                icon: '🛡️',
-                description: '15% chance to keep streak on loss',
-                effect: 'Modifier equipment',
-                price: 6000,
-                rarity: 'epic',
-                category: 'Modifier',
-                type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { save_chance: 0.15 },
-                apply: () => {
-                    this.activeEffects.streakSaver = true;
-                    this.showMessage('STREAK SAVER ACTIVE! 15% SAVE CHANCE!');
-                }
-            },
-            {
-                id: 'mod_edge_bias',
-                name: 'Edge Bias',
-                icon: '⚖️',
-                description: '+1% to +5% base win chance per rarity level',
-                effect: 'Modifier equipment',
-                price: 800,
+            makeItem({
+                id: 'lucky_thumb',
+                name: 'Lucky Thumb',
+                icon: '👍',
                 rarity: 'common',
-                category: 'Modifier',
-                type: 'equip',
-                maxTier: 4,
-                tier: 1,
-                values: { win_chance: [0.01, 0.02, 0.03, 0.05] },
-                apply: () => {
-                    this.activeEffects.edgeBias = (this.activeEffects.edgeBias || 0) + 1;
-                    this.showMessage(`EDGE BIAS UPGRADED! TIER ${this.activeEffects.edgeBias}!`);
+                durability: 20,
+                description: 'Makes heads slightly more likely but can break if luck turns bad.',
+                effect: '+10% heads. Breaks after 3 tails in a row.',
+                initState: () => ({ failureStreak: 0 }),
+                onPreFlip(context, game, item) {
+                    context.headsChance += 0.10 * getMultiplier(item);
+                },
+                onResult(payload, game, item) {
+                    const mult = getMultiplier(item);
+                    const failureSide = mult > 0 ? 'tails' : 'heads';
+                    if (payload.result === failureSide) {
+                        item.state.failureStreak = (item.state.failureStreak || 0) + 1;
+                    } else {
+                        item.state.failureStreak = 0;
+                    }
+                    if (item.state.failureStreak >= 3) {
+                        item.state.forceBreak = mult > 0
+                            ? 'Lucky Thumb snapped after a nasty streak.'
+                            : 'Entropy backlash shattered the Lucky Thumb.';
+                    }
                 }
-            },
-            {
-                id: 'util_bank_buffer',
-                name: 'Bank Buffer',
-                icon: '💰',
-                description: 'Gain +15% to +30% more when banking score',
-                effect: 'Utility equipment',
-                price: 1200,
-                rarity: 'rare',
-                category: 'Utility',
-                type: 'equip',
-                maxTier: 2,
-                tier: 1,
-                values: { bank_bonus: [0.15, 0.30] },
-                apply: () => {
-                    this.activeEffects.bankBuffer = (this.activeEffects.bankBuffer || 0) + 1;
-                    this.showMessage(`BANK BUFFER UPGRADED! TIER ${this.activeEffects.bankBuffer}!`);
-                }
-            },
-            {
-                id: 'util_insurance_module',
-                name: 'Insurance Module',
-                icon: '🔒',
-                description: 'On loss, recover 25% of streak score into bank (once per run)',
-                effect: 'Utility equipment',
-                price: 4000,
-                rarity: 'rare',
-                category: 'Utility',
-                type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { recover_pct: 0.25 },
-                apply: () => {
-                    this.activeEffects.insuranceModule = true;
-                    this.showMessage('INSURANCE MODULE ACTIVE! 25% RECOVERY!');
-                }
-            },
-            {
-                id: 'util_mirror_socket',
-                name: 'Mirror Socket',
-                icon: '🪞',
-                description: 'Once per run, after a loss, flip twice and choose the result',
-                effect: 'Utility equipment',
-                price: 5500,
-                rarity: 'epic',
-                category: 'Utility',
-                type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { uses: 1 },
-                apply: () => {
-                    this.activeEffects.mirrorSocket = true;
-                    this.showMessage('MIRROR SOCKET ACTIVE! CHOOSE YOUR RESULT!');
-                }
-            },
-            {
-                id: 'battle_arena_edge',
-                name: 'Arena Edge',
-                icon: '⚔️',
-                description: '+10% win chance vs opponents in battle mode',
-                effect: 'Battle equipment',
-                price: 3500,
-                rarity: 'rare',
-                category: 'Battle',
-                type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { battle_win_chance: 0.1 },
-                apply: () => {
-                    this.activeEffects.arenaEdge = true;
-                    this.showMessage('ARENA EDGE ACTIVE! +10% BATTLE WIN CHANCE!');
-                }
-            },
-            {
-                id: 'battle_wager_multiplier',
-                name: 'Wager Multiplier',
-                icon: '🎲',
-                description: 'Battle wins increase payout by 1.2x',
-                effect: 'Battle equipment',
-                price: 6500,
-                rarity: 'epic',
-                category: 'Battle',
-                type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { wager_mult: 1.2 },
-                apply: () => {
-                    this.activeEffects.wagerMultiplier = true;
-                    this.showMessage('WAGER MULTIPLIER ACTIVE! 1.2X BATTLE PAYOUTS!');
-                }
-            },
-            {
-                id: 'legendary_coin_paradox',
-                name: 'Coin of Paradox',
+            }),
+            makeItem({
+                id: 'bent_penny',
+                name: 'Bent Penny',
                 icon: '🪙',
-                description: '+8% win chance, +5% streak save, +0.05 per-win multiplier',
-                effect: 'Legendary equipment',
-                price: 30000,
-                rarity: 'legendary',
-                category: 'Legendary',
-                type: 'equip',
-                maxTier: 1,
-                tier: 1,
-                values: { win_chance: 0.08, save_chance: 0.05, multiplier_gain: 0.05 },
-                apply: () => {
-                    this.activeEffects.coinParadox = true;
-                    this.showMessage('COIN OF PARADOX ACTIVE! LEGENDARY POWERS!');
+                rarity: 'common',
+                durability: 25,
+                description: 'Favors tails and gives small payouts when you land tails.',
+                effect: '+5% tails. +2 coins on winning tails.',
+                onPreFlip(context, game, item) {
+                    context.tailsChance += 0.05 * getMultiplier(item);
+                },
+                onResult(payload, game, item) {
+                    const mult = getMultiplier(item);
+                    const targetSide = mult > 0 ? 'tails' : 'heads';
+                    if (payload.won && payload.result === targetSide) {
+                        payload.context.scoreBonusOnWin = (payload.context.scoreBonusOnWin || 0) + 2 * mult;
+                    }
                 }
-            }
+            }),
+            makeItem({
+                id: 'weighted_edge',
+                name: 'Weighted Edge',
+                icon: '⚖️',
+                rarity: 'uncommon',
+                durability: 15,
+                description: 'Balances your coin odds so both sides become fairer.',
+                effect: '+15% to whichever side is currently weaker.',
+                onPreFlip(context, game, item) {
+                    const mult = getMultiplier(item);
+                    if (mult > 0) {
+                        if (context.headsChance < context.tailsChance) {
+                            context.headsChance += 0.15;
+                        } else if (context.tailsChance < context.headsChance) {
+                            context.tailsChance += 0.15;
+                        } else {
+                            context.headsChance += 0.075;
+                            context.tailsChance += 0.075;
+                        }
+                    } else {
+                        if (context.headsChance < context.tailsChance) {
+                            context.headsChance = Math.max(0, context.headsChance - 0.15);
+                        } else if (context.tailsChance < context.headsChance) {
+                            context.tailsChance = Math.max(0, context.tailsChance - 0.15);
+                        } else {
+                            context.headsChance = Math.max(0, context.headsChance - 0.075);
+                            context.tailsChance = Math.max(0, context.tailsChance - 0.075);
+                        }
+                    }
+                }
+            }),
+            makeItem({
+                id: 'double_or_nothing',
+                name: 'Double or Nothing',
+                icon: '🎲',
+                rarity: 'rare',
+                durability: 12,
+                description: 'Occasionally gives you double credit on a flip.',
+                effect: '20% chance the next flip counts twice.',
+                initState: () => ({ triggered: false }),
+                onPreFlip(context, game, item) {
+                    const mult = getMultiplier(item);
+                    item.state.triggered = Math.random() < 0.2;
+                    if (!item.state.triggered) return;
+                    context.messages = context.messages || [];
+                    if (mult > 0) {
+                        context.doubleOutcome = true;
+                        context.messages.push('Double or Nothing is primed!');
+                    } else {
+                        context.halfOutcome = true;
+                        context.messages.push('Double or Nothing misfires: payouts halved.');
+                    }
+                },
+                onFlipEnd(context, game, item) {
+                    item.state.triggered = false;
+                }
+            }),
+            makeItem({
+                id: 'burnt_coin',
+                name: 'Burnt Coin',
+                icon: '🔥',
+                rarity: 'uncommon',
+                durability: 18,
+                description: 'Makes you less lucky but pays out more when you win.',
+                effect: '-5% win chance. +50% coin reward.',
+                onPreFlip(context, game, item) {
+                    const mult = getMultiplier(item);
+                    context.playerWinChanceModifier -= 0.05 * mult;
+                    context.rewardMultiplier *= 1 + (0.5 * mult);
+                }
+            }),
+            makeItem({
+                id: 'counterfeit_coin',
+                name: 'Counterfeit Coin',
+                icon: '💸',
+                rarity: 'uncommon',
+                durability: 25,
+                description: 'Protects you from bad random events occasionally.',
+                effect: 'Ignores one random event every 10 flips.',
+                initState: () => ({ flips: 0, pendingCancel: false, pendingForce: false }),
+                onPreFlip(context, game, item) {
+                    const mult = getMultiplier(item);
+                    item.state.flips = (item.state.flips || 0) + 1;
+                    if (item.state.flips >= 10) {
+                        if (mult > 0) {
+                            item.state.pendingCancel = true;
+                        } else {
+                            item.state.pendingForce = true;
+                        }
+                        item.state.flips = 0;
+                    }
+                    if (item.state.pendingCancel && mult > 0) {
+                        context.eventCancelRequests = context.eventCancelRequests || [];
+                        context.eventCancelRequests.push({ id: item.id, reason: 'Counterfeit Coin absorbs the next event.' });
+                    }
+                    if (item.state.pendingForce && mult < 0) {
+                        context.forceEventTrigger = true;
+                    }
+                },
+                onEventCheck(eventContext, game, item, outcome) {
+                    const mult = getMultiplier(item);
+                    if (mult > 0 && item.state.pendingCancel && outcome?.triggered) {
+                        item.state.pendingCancel = false;
+                    }
+                    if (mult < 0 && item.state.pendingForce && outcome?.triggered) {
+                        item.state.pendingForce = false;
+                    }
+                }
+            }),
+            makeItem({
+                id: 'rabbits_foot',
+                name: 'Rabbit\'s Foot',
+                icon: '🐇',
+                rarity: 'common',
+                durability: 20,
+                description: 'Rewards you after a losing streak by improving heads.',
+                effect: '+3% heads per tails until a heads resets it.',
+                initState: () => ({ headsBoost: 0 }),
+                onPreFlip(context, game, item) {
+                    if (item.state.headsBoost) {
+                        context.headsChance += item.state.headsBoost * getMultiplier(item);
+                    }
+                },
+                onResult(payload, game, item) {
+                    const mult = getMultiplier(item);
+                    if (payload.result === 'tails') {
+                        item.state.headsBoost = (item.state.headsBoost || 0) + 0.03;
+                    } else if (payload.result === 'heads') {
+                        item.state.headsBoost = 0;
+                    }
+                    if (mult < 0 && item.state.headsBoost > 0) {
+                        item.state.headsBoost = Math.min(item.state.headsBoost, 0.3);
+                    }
+                }
+            }),
+            makeItem({
+                id: 'rusty_nickel',
+                name: 'Rusty Nickel',
+                icon: '🪙',
+                rarity: 'common',
+                durability: 30,
+                description: 'Lasts a while but might suddenly break.',
+                effect: 'Every 5 flips, 10% chance to break early.',
+                initState: () => ({ flips: 0 }),
+                onPreFlip(context, game, item) {
+                    const mult = getMultiplier(item);
+                    item.state.flips = (item.state.flips || 0) + 1;
+                    if (item.state.flips % 5 !== 0) return;
+                    if (mult > 0 && Math.random() < 0.1) {
+                        item.state.forceBreak = 'Rusty Nickel crumbled from age.';
+                    }
+                    if (mult < 0 && Math.random() < 0.1) {
+                        const max = item.maxDurability ?? item.durability;
+                        if (max != null) {
+                            item.remainingDurability = Math.min(max, (item.remainingDurability || max) + 5);
+                        }
+                    }
+                }
+            }),
+            makeItem({
+                id: 'mirror_coin',
+                name: 'Mirror Coin',
+                icon: '🪞',
+                rarity: 'uncommon',
+                durability: 18,
+                description: 'Prevents long bad streaks by forcing a heads.',
+                effect: 'If tails twice in a row, next flip is guaranteed heads.',
+                initState: () => ({ tailStreak: 0, headStreak: 0, forceHeads: false, forceTails: false }),
+                onPreFlip(context, game, item) {
+                    const mult = getMultiplier(item);
+                    if (mult > 0 && item.state.forceHeads) {
+                        context.forceResult = 'heads';
+                        item.state.forceHeads = false;
+                    }
+                    if (mult < 0 && item.state.forceTails) {
+                        context.forceResult = 'tails';
+                        item.state.forceTails = false;
+                    }
+                },
+                onResult(payload, game, item) {
+                    const mult = getMultiplier(item);
+                    if (mult > 0) {
+                        if (payload.result === 'tails') {
+                            item.state.tailStreak = (item.state.tailStreak || 0) + 1;
+                        } else {
+                            item.state.tailStreak = 0;
+                        }
+                        if (item.state.tailStreak >= 2) {
+                            item.state.forceHeads = true;
+                        }
+                    } else {
+                        if (payload.result === 'heads') {
+                            item.state.headStreak = (item.state.headStreak || 0) + 1;
+                        } else {
+                            item.state.headStreak = 0;
+                        }
+                        if (item.state.headStreak >= 2) {
+                            item.state.forceTails = true;
+                        }
+                    }
+                }
+            }),
+            makeItem({
+                id: 'magnet_token',
+                name: 'Magnet Token',
+                icon: '🧲',
+                rarity: 'rare',
+                durability: 15,
+                description: 'Always blocks random events while active.',
+                effect: 'Cancels one random event per round.',
+                onPreFlip(context, game, item) {
+                    const mult = getMultiplier(item);
+                    if (mult > 0) {
+                        context.cancelEvent = true;
+                        context.blockEventReason = 'Magnet Token nullifies random events.';
+                    } else {
+                        context.eventChanceMultiplier *= 1.5;
+                    }
+                }
+            }),
+            makeItem({
+                id: 'weighted_decision',
+                name: 'Weighted Decision',
+                icon: '📊',
+                rarity: 'uncommon',
+                durability: 25,
+                description: 'Makes events rarer and slightly improves luck.',
+                effect: '-10% event chance. +5% heads.',
+                onPreFlip(context, game, item) {
+                    const mult = getMultiplier(item);
+                    context.headsChance += 0.05 * mult;
+                    context.eventChanceMultiplier *= mult > 0 ? 0.9 : 1.1;
+                }
+            }),
+            makeItem({
+                id: 'fortune_band',
+                name: 'Fortune Band',
+                icon: '🎗️',
+                rarity: 'common',
+                durability: 25,
+                description: 'Rewards consecutive wins.',
+                effect: '+1 coin for each streaked win.',
+                onAfterResult(payload, game, item) {
+                    const mult = getMultiplier(item);
+                    if (payload.won) {
+                        payload.context.scoreBonusOnWin = (payload.context.scoreBonusOnWin || 0) + (game.streak * mult);
+                    }
+                }
+            }),
+            makeItem({
+                id: 'chaos_token',
+                name: 'Chaos Token',
+                icon: '🌀',
+                rarity: 'rare',
+                durability: 20,
+                description: 'Sometimes flips your result to the opposite but pays big.',
+                effect: '10% chance to invert result and double reward.',
+                onResult(payload, game, item) {
+                    const mult = getMultiplier(item);
+                    if (Math.random() >= 0.1) return;
+                    payload.context.messages = payload.context.messages || [];
+                    payload.context.messages.push(mult > 0 ? 'Chaos Token flips fate!' : 'Chaos Token backlash!');
+                    payload.result = payload.result === 'heads' ? 'tails' : 'heads';
+                    payload.won = payload.result === payload.playerChoice;
+                    payload.context.rewardMultiplier *= mult > 0 ? 2 : 0.5;
+                }
+            }),
+            makeItem({
+                id: 'silver_edge',
+                name: 'Silver Edge',
+                icon: '🗡️',
+                rarity: 'rare',
+                durability: 25,
+                description: 'Strong item that might shatter anytime.',
+                effect: '+10% heads. 1% self-break per flip.',
+                onPreFlip(context, game, item) {
+                    context.headsChance += 0.10 * getMultiplier(item);
+                },
+                onAfterResult(payload, game, item) {
+                    if (Math.random() < 0.01) {
+                        item.state.forceBreak = getMultiplier(item) > 0
+                            ? 'Silver Edge shattered!'
+                            : 'Silver Edge dissolved under chaos!';
+                    }
+                }
+            }),
+            makeItem({
+                id: 'black_coin',
+                name: 'Black Coin',
+                icon: '⚫',
+                rarity: 'legendary',
+                durability: 1,
+                description: 'Saves you from one loss, then disappears.',
+                effect: 'Cancels your next loss.',
+                initState: () => ({ used: false }),
+                onResult(payload, game, item) {
+                    const mult = getMultiplier(item);
+                    if (item.state.used) return;
+                    payload.context.messages = payload.context.messages || [];
+                    if (mult > 0 && !payload.won) {
+                        payload.forceWin = true;
+                        item.state.used = true;
+                        item.state.forceBreak = 'Black Coin crumbled saving your streak.';
+                        payload.context.messages.push('Black Coin saved you!');
+                    }
+                    if (mult < 0 && payload.won) {
+                        payload.forceLoss = true;
+                        item.state.used = true;
+                        item.state.forceBreak = 'Black Coin demanded a loss.';
+                        payload.context.messages.push('Black Coin twisted your victory!');
+                    }
+                }
+            }),
+            makeItem({
+                id: 'tricksters_charm',
+                name: 'Trickster\'s Charm',
+                icon: '🃏',
+                rarity: 'uncommon',
+                durability: 15,
+                description: 'Turns some bad events into good ones.',
+                effect: '50% chance to turn triggered event into positive.',
+                onRandomEvent(eventPayload, game, item) {
+                    const mult = getMultiplier(item);
+                    if (!eventPayload?.event) return;
+                    const event = eventPayload.event;
+                    const isPositive = ['reward', 'cosmetic'].includes(event.type);
+                    eventPayload.messages = eventPayload.messages || [];
+                    if (mult > 0 && !isPositive && Math.random() < 0.5) {
+                        eventPayload.convertToPositive = true;
+                        eventPayload.messages.push('Trickster\'s Charm flipped the event!');
+                    }
+                    if (mult < 0 && isPositive && Math.random() < 0.5) {
+                        eventPayload.convertToNegative = true;
+                        eventPayload.messages.push('Trickster\'s Charm corrupted the event!');
+                    }
+                }
+            }),
+            makeItem({
+                id: 'golden_flick',
+                name: 'Golden Flick',
+                icon: '🌟',
+                rarity: 'common',
+                durability: 20,
+                description: 'Simple extra money from heads.',
+                effect: '+1 coin on every heads win.',
+                onAfterResult(payload, game, item) {
+                    const mult = getMultiplier(item);
+                    if (payload.won && payload.result === 'heads') {
+                        payload.context.scoreBonusOnWin = (payload.context.scoreBonusOnWin || 0) + 1 * mult;
+                    }
+                }
+            }),
+            makeItem({
+                id: 'cursed_penny',
+                name: 'Cursed Penny',
+                icon: '☠️',
+                rarity: 'rare',
+                durability: 18,
+                description: 'High rewards but invites trouble.',
+                effect: '+25% reward, doubles random event chance.',
+                onPreFlip(context, game, item) {
+                    const mult = getMultiplier(item);
+                    context.rewardMultiplier *= 1 + (0.25 * mult);
+                    context.eventChanceMultiplier *= mult > 0 ? 2 : 0.5;
+                }
+            }),
+            makeItem({
+                id: 'echo_coin',
+                name: 'Echo Coin',
+                icon: '🔁',
+                rarity: 'uncommon',
+                durability: 15,
+                description: 'Creates predictable patterns to plan around.',
+                effect: 'Every 3rd flip repeats the previous outcome.',
+                initState: () => ({ flips: 0 }),
+                onPreFlip(context, game, item) {
+                    const mult = getMultiplier(item);
+                    item.state.flips = (item.state.flips || 0) + 1;
+                    if (item.state.flips % 3 !== 0) return;
+                    const last = game.itemRuntimeState?.lastFlipResult;
+                    if (!last) return;
+                    context.forceResult = mult > 0 ? last : (last === 'heads' ? 'tails' : 'heads');
+                }
+            }),
+            makeItem({
+                id: 'fractured_edge',
+                name: 'Fractured Edge',
+                icon: '🪓',
+                rarity: 'common',
+                durability: 25,
+                description: 'Makes luck swing back and forth.',
+                effect: 'On tails: -5% heads next turn; on heads: +5%.',
+                initState: () => ({ nextHeadModifier: 0 }),
+                onPreFlip(context, game, item) {
+                    if (item.state.nextHeadModifier) {
+                        context.headsChance += item.state.nextHeadModifier * getMultiplier(item);
+                    }
+                },
+                onResult(payload, game, item) {
+                    if (payload.result === 'heads') {
+                        item.state.nextHeadModifier = 0.05;
+                    } else if (payload.result === 'tails') {
+                        item.state.nextHeadModifier = -0.05;
+                    }
+                    if (getMultiplier(item) < 0 && item.state.nextHeadModifier !== 0) {
+                        item.state.nextHeadModifier *= -1;
+                    }
+                }
+            }),
+            makeItem({
+                id: 'coin_purse',
+                name: 'Coin Purse',
+                icon: '👛',
+                rarity: 'common',
+                durability: 10,
+                description: 'Quick money maker but burns out fast.',
+                effect: '+1 coin each flip.',
+                onAfterResult(payload, game, item) {
+                    const mult = getMultiplier(item);
+                    payload.context.flatCoinGain = (payload.context.flatCoinGain || 0) + 1 * mult;
+                }
+            }),
+            makeItem({
+                id: 'glass_coin',
+                name: 'Glass Coin',
+                icon: '🧊',
+                rarity: 'rare',
+                durability: 1,
+                description: 'High-risk, single-use power boost.',
+                effect: '+20% heads but breaks instantly on tails.',
+                onPreFlip(context, game, item) {
+                    context.headsChance += 0.20 * getMultiplier(item);
+                },
+                onResult(payload, game, item) {
+                    const mult = getMultiplier(item);
+                    const breakSide = mult > 0 ? 'tails' : 'heads';
+                    if (payload.result === breakSide) {
+                        item.state.forceBreak = 'Glass Coin shattered from the impact.';
+                    }
+                }
+            }),
+            makeItem({
+                id: 'collectors_token',
+                name: 'Collector\'s Token',
+                icon: '🎟️',
+                rarity: 'rare',
+                durability: 20,
+                description: 'Encourages you to fill all four slots.',
+                effect: '+2% heads for each active item.',
+                onPreFlip(context, game, item) {
+                    const mult = getMultiplier(item);
+                    const activeItems = context.activeItems ?? game.inventory.filter(Boolean);
+                    context.headsChance += (activeItems.length * 0.02) * mult;
+                }
+            }),
+            makeItem({
+                id: 'clover_band',
+                name: 'Clover Band',
+                icon: '🍀',
+                rarity: 'uncommon',
+                durability: 15,
+                description: 'Helps you recover after bad luck.',
+                effect: '+10% heads if last flip was tails.',
+                onPreFlip(context, game, item) {
+                    const mult = getMultiplier(item);
+                    const targetLast = mult > 0 ? 'tails' : 'heads';
+                    if (game.itemRuntimeState?.lastFlipResult === targetLast) {
+                        context.headsChance += 0.10 * mult;
+                    }
+                }
+            }),
+            makeItem({
+                id: 'magpie_feather',
+                name: 'Magpie Feather',
+                icon: '🪶',
+                rarity: 'uncommon',
+                durability: 20,
+                description: 'Rewards streak play.',
+                effect: 'Win 3 in a row to gain +5 coins.',
+                onAfterResult(payload, game, item) {
+                    const mult = getMultiplier(item);
+                    if (payload.won && game.streak > 0 && game.streak % 3 === 0) {
+                        payload.context.scoreBonusOnWin = (payload.context.scoreBonusOnWin || 0) + 5 * mult;
+                    }
+                }
+            }),
+            makeItem({
+                id: 'fate_chip',
+                name: 'Fate Chip',
+                icon: '🎰',
+                rarity: 'rare',
+                durability: 25,
+                description: 'Turns bad events into bonuses.',
+                effect: 'Each random event gives +2 coins instead of penalty.',
+                onRandomEvent(eventPayload, game, item) {
+                    const mult = getMultiplier(item);
+                    if (!eventPayload?.event) return;
+                    const event = eventPayload.event;
+                    const isNegative = ['risk', 'mutation', 'legendary'].includes(event.type);
+                    if (mult > 0 && isNegative) {
+                        eventPayload.overrideWithReward = { type: 'coins', amount: 2 };
+                    }
+                    if (mult < 0 && !isNegative) {
+                        eventPayload.overrideWithPenalty = { type: 'coins', amount: -2 };
+                    }
+                }
+            }),
+            makeItem({
+                id: 'counter_token',
+                name: 'Counter Token',
+                icon: '🛡️',
+                rarity: 'rare',
+                durability: 25,
+                description: 'Reliable defense item.',
+                effect: '-10% event chance, cancels 1 event every 10 flips.',
+                initState: () => ({ flips: 0, pendingCancel: false }),
+                onPreFlip(context, game, item) {
+                    const mult = getMultiplier(item);
+                    context.eventChanceMultiplier *= mult > 0 ? 0.9 : 1.1;
+                    item.state.flips = (item.state.flips || 0) + 1;
+                    if (item.state.flips >= 10) {
+                        if (mult > 0) {
+                            item.state.pendingCancel = true;
+                        }
+                        item.state.flips = 0;
+                    }
+                    if (item.state.pendingCancel && mult > 0) {
+                        context.eventCancelRequests = context.eventCancelRequests || [];
+                        context.eventCancelRequests.push({ id: item.id, reason: 'Counter Token nullifies the next event.' });
+                    }
+                },
+                onEventCheck(eventContext, game, item, outcome) {
+                    if (getMultiplier(item) > 0 && item.state.pendingCancel && outcome?.triggered) {
+                        item.state.pendingCancel = false;
+                    }
+                }
+            }),
+            makeItem({
+                id: 'coin_splitter',
+                name: 'Coin Splitter',
+                icon: '✂️',
+                rarity: 'rare',
+                durability: 10,
+                description: 'Gives extra chance to win sometimes.',
+                effect: '10% chance to flip twice and take best result.',
+                initState: () => ({ triggered: false }),
+                onPreFlip(context, game, item) {
+                    const mult = getMultiplier(item);
+                    item.state.triggered = Math.random() < 0.1;
+                    if (!item.state.triggered) return;
+                    if (mult > 0) {
+                        context.coinSplitter = true;
+                    } else {
+                        context.coinSplitterPenalty = true;
+                    }
+                },
+                onFlipEnd(context, game, item) {
+                    item.state.triggered = false;
+                }
+            }),
+            makeItem({
+                id: 'mercy_coin',
+                name: 'Mercy Coin',
+                icon: '🙏',
+                rarity: 'rare',
+                durability: 15,
+                description: 'Stops you from getting crushed by bad luck.',
+                effect: 'Prevents losing streaks longer than 3 by forcing a win.',
+                onResult(payload, game, item) {
+                    const mult = getMultiplier(item);
+                    if (mult > 0 && !payload.won && game.lossStreak >= 3) {
+                        payload.forceWin = true;
+                        item.state.forceBreak = 'Mercy Coin prevented another loss.';
+                    }
+                    if (mult < 0 && payload.won && game.streak >= 3) {
+                        payload.forceLoss = true;
+                        item.state.forceBreak = 'Mercy Coin demanded a loss.';
+                    }
+                }
+            }),
+            makeItem({
+                id: 'entropy_shard',
+                name: 'Entropy Shard',
+                icon: '💠',
+                rarity: 'legendary',
+                durability: 20,
+                description: 'Makes your items chaotic — effects invert randomly.',
+                effect: 'Each round, inverts one equipped item’s effect.',
+                initState: () => ({ target: null, previousInversion: false }),
+                onPreFlip(context, game, item) {
+                    if (item.state.target && item.state.target.state) {
+                        item.state.target.state.inverted = item.state.previousInversion;
+                        item.state.target = null;
+                    }
+                    if (getMultiplier(item) < 0) {
+                        return;
+                    }
+                    const activeItems = context.activeItems ?? game.inventory.filter(Boolean);
+                    const candidates = activeItems.filter(inst => inst !== item);
+                    if (candidates.length === 0) return;
+                    const target = candidates[Math.floor(Math.random() * candidates.length)];
+                    target.state = target.state || {};
+                    item.state.previousInversion = !!target.state.inverted;
+                    target.state.inverted = !target.state.inverted;
+                    item.state.target = target;
+                    context.messages = context.messages || [];
+                    context.messages.push(`Entropy Shard warps ${target.name}!`);
+                },
+                onFlipEnd(context, game, item) {
+                    if (item.state.target && item.state.target.state) {
+                        item.state.target.state.inverted = item.state.previousInversion;
+                        item.state.target = null;
+                    }
+                }
+            })
         ];
     }
-    
+
+
+
     openShop() {
-        // Check if shop should be accessible
-        if (!this.shopUnlocked) {
-            this.showMessage('SHOP UNLOCKS AT 5 STREAK!');
-            return;
-        }
-        
-        if (!this.shopAvailable && this.streak !== this.lastShopStreak) {
-            const nextShop = this.getNextShopStreak();
-            this.showMessage(`SHOP REOPENS AT STREAK ${nextShop}!`);
-            return;
-        }
-        
         const modal = document.getElementById('shopModal');
         modal.classList.add('show');
         
         this.updateShopDisplay();
         this.generateShopStock();
-    }
-    
-    getNextShopStreak() {
-        if (this.streak < 5) return 5;
-        // Calculate next shop opening: 5, 8, 11, 14, 17, 20, etc.
-        const streaksSinceUnlock = this.streak - 5;
-        const nextInterval = Math.floor(streaksSinceUnlock / 3) + 1;
-        return 5 + (nextInterval * 3);
     }
     
     updateShopDisplay() {
@@ -1665,17 +2087,8 @@ Play at: ${window.location.href}`;
         
         // Update status
         const statusEl = document.getElementById('shopStatus');
-        if (this.streak >= 5 && this.streak % 5 === 0) {
-            statusEl.textContent = 'NEW ITEMS AVAILABLE!';
-            statusEl.style.color = '#4ecdc4';
-        } else if (this.streak < 5) {
-            statusEl.textContent = 'STREAK 5+ TO UNLOCK';
-            statusEl.style.color = '#ff6b6b';
-        } else {
-            const nextShop = Math.ceil(this.streak / 5) * 5;
-            statusEl.textContent = `NEXT SHOP AT ${nextShop} STREAK`;
-            statusEl.style.color = '#ff6b6b';
-        }
+        statusEl.textContent = 'SHOP OPEN 24/7 ? STOCK REFRESHES EACH VISIT';
+        statusEl.style.color = '#4ecdc4';
         
         // Update inventory display
         this.updateInventoryDisplay();
@@ -1707,12 +2120,12 @@ Play at: ${window.location.href}`;
                 <div class="item-rarity rarity-${item.rarity}">${item.rarity.toUpperCase()}</div>
                 <div class="item-header">
                     <span class="item-icon">${item.icon}</span>
-                    <span class="item-price">${scaledPrice} 🪙</span>
+                    <span class="item-price">${scaledPrice} coins</span>
                 </div>
                 <div class="item-title">${item.name}</div>
                 <div class="item-description">${item.description}</div>
                 <div class="item-effect">${item.effect}</div>
-                <div class="item-uses">Uses: ${item.uses}</div>
+                <div class="item-durability">Durability: ${item.durability ?? item.maxDurability ?? item.uses ?? 'N/A'}</div>
             `;
             
             itemDiv.addEventListener('click', () => {
@@ -1721,6 +2134,262 @@ Play at: ${window.location.href}`;
             
             shopItemsDiv.appendChild(itemDiv);
         });
+    }
+    
+    createItemInstance(definition) {
+        const baseDurability = definition.durability ?? definition.maxDurability ?? definition.uses ?? 1;
+        return {
+            id: definition.id,
+            name: definition.name,
+            icon: definition.icon,
+            rarity: definition.rarity,
+            description: definition.description,
+            effect: definition.effect,
+            price: definition.price,
+            durability: baseDurability,
+            maxDurability: baseDurability,
+            remainingDurability: baseDurability,
+            onPreFlip: definition.onPreFlip,
+            onResult: definition.onResult,
+            onAfterResult: definition.onAfterResult,
+            onEventCheck: definition.onEventCheck,
+            onRandomEvent: definition.onRandomEvent,
+            onFlipEnd: definition.onFlipEnd,
+            state: definition.initState ? definition.initState() : {}
+        };
+    }
+    
+    forEachActiveItem(callback) {
+        this.inventory.forEach((item, index) => {
+            if (item) {
+                callback(item, index);
+            }
+        });
+    }
+    
+    getActiveItems() {
+        const items = [];
+        this.forEachActiveItem((item) => items.push(item));
+        return items;
+    }
+    
+    applyItemHook(hookName, ...args) {
+        this.forEachActiveItem((item, index) => {
+            const handler = item[hookName];
+            if (typeof handler === 'function') {
+                handler(...args, this, item, index);
+            }
+        });
+    }
+    
+    buildFlipContext() {
+        const context = {
+            playerChoice: this.playerChoice,
+            headsChance: 0.5,
+            tailsChance: 0.5,
+            playerWinChanceModifier: 0,
+            rewardMultiplier: 1,
+            rewardBonus: 0,
+            scoreBonusOnWin: 0,
+            flatCoinGain: 0,
+            eventChanceMultiplier: 1,
+            eventChanceBonus: 0,
+            cancelEvent: false,
+            blockEventReason: null,
+            eventCancelRequests: [],
+            forceEventTrigger: false,
+            forceResult: null,
+            doubleOutcome: false,
+            halfOutcome: false,
+            coinSplitter: false,
+            coinSplitterPenalty: false,
+            messages: [],
+            activeItems: this.getActiveItems()
+        };
+        this.applyItemHook('onPreFlip', context);
+        return context;
+    }
+    
+    determineFlipOutcome(context) {
+        const opposite = this.playerChoice === 'heads' ? 'tails' : 'heads';
+        let headsChance = Math.max(0, context.headsChance);
+        let tailsChance = Math.max(0, context.tailsChance);
+        const total = headsChance + tailsChance;
+        if (total <= 0) {
+            headsChance = 0.5;
+            tailsChance = 0.5;
+        } else {
+            headsChance /= total;
+            tailsChance /= total;
+        }
+        let winChance = this.playerChoice === 'heads' ? headsChance : tailsChance;
+        winChance += context.playerWinChanceModifier || 0;
+        
+        if (this.getUpgradeBonus) {
+            winChance += this.getUpgradeBonus('winChance');
+        }
+        
+        if (this.activeEffects.predictionBuff) {
+            winChance += this.activeEffects.predictionBuff;
+        }
+        
+        if (this.activeEffects.steadyCore) {
+            winChance += 0.08;
+        }
+        
+        if (this.activeEffects.edgeBias) {
+            const edgeBiasTier = Math.min(this.activeEffects.edgeBias, 4);
+            const edgeBiasValues = [0.01, 0.02, 0.03, 0.05];
+            winChance += edgeBiasValues[edgeBiasTier - 1];
+        }
+        
+        if (this.activeEffects.coinParadox) {
+            winChance += 0.08;
+        }
+        
+        if (this.activeEffects.luckyCharm) {
+            winChance = 1;
+            this.activeEffects.luckyCharm = false;
+        }
+        
+        winChance = Math.min(Math.max(winChance, 0), 1);
+        
+        let result;
+        if (context.forceResult) {
+            result = context.forceResult;
+        } else {
+            result = Math.random() < winChance ? this.playerChoice : opposite;
+            if (context.coinSplitter && result !== this.playerChoice) {
+                const secondWin = Math.random() < winChance;
+                const secondResult = secondWin ? this.playerChoice : opposite;
+                if (secondResult === this.playerChoice) {
+                    result = secondResult;
+                }
+            }
+            if (context.coinSplitterPenalty && result === this.playerChoice) {
+                const penaltyWin = Math.random() < winChance;
+                const penaltyResult = penaltyWin ? this.playerChoice : opposite;
+                if (penaltyResult !== this.playerChoice) {
+                    result = penaltyResult;
+                }
+            }
+        }
+        
+        const payload = {
+            result,
+            originalResult: result,
+            playerChoice: this.playerChoice,
+            won: result === this.playerChoice,
+            context
+        };
+        payload.upcomingStreak = this.streak + (payload.won ? 1 : 0);
+        payload.upcomingLossStreak = this.lossStreak + (payload.won ? 0 : 1);
+        payload.upcomingFlipCount = this.itemRuntimeState.flipCount + 1;
+        
+        this.applyItemHook('onResult', payload);
+        
+        if (payload.forceWin) {
+            payload.result = this.playerChoice;
+            payload.won = true;
+        } else if (payload.forceLoss) {
+            payload.result = opposite;
+            payload.won = false;
+        } else {
+            payload.won = payload.result === this.playerChoice;
+        }
+        
+        return payload;
+    }
+    
+    finalizeFlipOutcome(payload) {
+        const context = payload.context || {};
+        this.handleResult(payload.result, context);
+        this.applyItemHook('onAfterResult', payload);
+        
+        if (payload.won && context.scoreBonusOnWin) {
+            this.score += Math.round(context.scoreBonusOnWin);
+            this.updateDisplay();
+        }
+        
+        if (context.flatCoinGain) {
+            this.bank += Math.round(context.flatCoinGain);
+            localStorage.setItem('bank', this.bank);
+            this.updateDisplay();
+        }
+        
+        if (payload.won && context.doubleOutcome) {
+            this.applyAdditionalWin(payload);
+        }
+        
+        if (payload.won && context.halfOutcome) {
+            this.applyHalfOutcome(payload);
+        }
+        
+        this.itemRuntimeState.lastFlipResult = payload.result;
+        this.itemRuntimeState.flipCount += 1;
+        
+        this.applyItemHook('onFlipEnd', context);
+        const brokenMessages = this.consumeItemDurability(context);
+        if (brokenMessages.length > 0) {
+            this.showMessage(brokenMessages[brokenMessages.length - 1]);
+        }
+        this.updateInventoryDisplay();
+    }
+    
+    applyAdditionalWin(payload) {
+        if (!this.lastWinDetails) return;
+        const context = payload.context || {};
+        const rewardMultiplier = context.rewardMultiplier ?? 1;
+        const multiplierGrowth = this.lastWinDetails.multiplierGrowth ?? 0.1;
+        this.streak += 1;
+        this.multiplier = 1.0 + (this.streak * multiplierGrowth);
+        const bonusPoints = Math.round(this.basePoints * this.multiplier * rewardMultiplier);
+        this.score += bonusPoints;
+        this.showMessage('DOUBLE OR NOTHING! EXTRA WIN COUNTED!');
+        this.checkStreakMilestones();
+        if (this.streak > this.bestStreak) {
+            this.bestStreak = this.streak;
+            localStorage.setItem('bestStreak', this.bestStreak);
+            this.updatePlayerTitle();
+        }
+        this.checkAchievements();
+        this.updateCoinEffects();
+        this.updateDisplay();
+    }
+    
+    applyHalfOutcome(payload) {
+        if (!this.lastWinDetails) return;
+        const reduction = Math.round(this.lastWinDetails.points / 2);
+        if (reduction > 0) {
+            this.score = Math.max(0, this.score - reduction);
+            this.showMessage('DOUBLE OR NOTHING BACKFIRED! REWARD HALVED.');
+            this.updateDisplay();
+        }
+    }
+    
+    consumeItemDurability(context) {
+        const messages = [];
+        this.forEachActiveItem((item, index) => {
+            const max = item.maxDurability ?? item.durability ?? null;
+            if (item.remainingDurability == null && max != null) {
+                item.remainingDurability = max;
+            }
+            const forceBreakReason = item.state?.forceBreak;
+            if (forceBreakReason) {
+                this.inventory[index] = null;
+                messages.push(forceBreakReason);
+                delete item.state.forceBreak;
+                return;
+            }
+            if (item.remainingDurability != null) {
+                item.remainingDurability = Math.max(0, item.remainingDurability - 1);
+                if (item.remainingDurability <= 0) {
+                    this.inventory[index] = null;
+                    messages.push(`${item.name} has broken.`);
+                }
+            }
+        });
+        return messages;
     }
     
     purchaseItem(item, price) {
@@ -1741,10 +2410,7 @@ Play at: ${window.location.href}`;
         localStorage.setItem('bank', this.bank);
         
         // Add to inventory
-        this.inventory[emptySlot] = {
-            ...item,
-            uses: item.uses
-        };
+        this.inventory[emptySlot] = this.createItemInstance(item);
         
         this.showMessage(`PURCHASED ${item.name.toUpperCase()}!`);
         this.updateDisplay();
@@ -1760,16 +2426,19 @@ Play at: ${window.location.href}`;
     updateInventoryDisplay() {
         const slots = document.querySelectorAll('.inventory-slot');
         
-        slots.forEach((slot, index) => {
+        slots.forEach(slot => {
+            const index = parseInt(slot.dataset.slot, 10);
             const item = this.inventory[index];
             
             if (item) {
+                const remaining = item.remainingDurability ?? item.durability ?? item.uses ?? 0;
+                const maxDurability = item.maxDurability ?? item.durability ?? item.uses ?? remaining;
                 slot.classList.remove('empty');
                 slot.innerHTML = `
                     <div class="item-in-slot">
-                        <span class="item-icon">${item.icon}</span>
+                        <span class="item-icon">${item.icon || '??'}</span>
                         <span class="item-name">${item.name}</span>
-                        <span class="item-uses">Uses: ${item.uses}</span>
+                        <span class="item-durability">Durability: ${remaining}/${maxDurability || '?'}</span>
                     </div>
                 `;
             } else {
@@ -1793,20 +2462,20 @@ Play at: ${window.location.href}`;
                     const div = document.createElement('div');
                     div.className = 'active-item';
                     
-                    let icon = '✨';
+                    let icon = '?';
                     let name = effect;
                     let duration = '';
                     
                     if (effect === 'freezeMultiplier') {
-                        icon = '❄️';
+                        icon = '??';
                         name = 'Frozen Multi';
                         duration = `${value.flips} flips`;
                     } else if (effect === 'greedGauge') {
-                        icon = '📈';
+                        icon = '??';
                         name = 'Greed Gauge';
                         duration = `${value} uses`;
                     } else if (effect === 'tacticalDelay') {
-                        icon = '⏱️';
+                        icon = '??';
                         name = 'Tactical Delay';
                         duration = `${value} uses`;
                     }
@@ -1832,27 +2501,15 @@ Play at: ${window.location.href}`;
             return;
         }
         
-        // Apply item effect
-        item.apply();
-        
-        // Reduce uses
-        item.uses--;
-        
-        if (item.uses <= 0) {
-            // Remove item from inventory
-            this.inventory[slotIndex] = null;
-        }
-        
-        // Update displays
-        this.updateInventoryDisplay();
-        this.updateShopDisplay();
+        const durabilityText = `${item.remainingDurability ?? item.durability ?? 'N/A'}/${item.maxDurability ?? item.durability ?? 'N/A'}`;
+        this.showMessage(`${item.name.toUpperCase()}: ${item.effect} (Durability ${durabilityText})`);
     }
     
     showShopUnlock() {
         const btn = document.getElementById('floatingShopBtn');
         btn.style.display = 'block';
         
-        this.showMessage('SHOP UNLOCKED! BUY TACTICAL ITEMS!');
+        this.showMessage('SHOP IS NOW ALWAYS OPEN! STOCK REFRESHES OFTEN.');
         
         setTimeout(() => {
             if (btn.style.display === 'block') {
@@ -1862,7 +2519,7 @@ Play at: ${window.location.href}`;
     }
     
     showShopAvailable() {
-        this.showMessage(`SHOP OPEN NOW! STREAK ${this.streak} - CLOSES AFTER USE!`);
+        this.showMessage('SHOP OPEN! CHECK OUT THE NEW STOCK.');
         
         const btn = document.getElementById('floatingShopBtn');
         btn.querySelector('.shop-text').textContent = 'SHOP OPEN!';
@@ -1870,7 +2527,7 @@ Play at: ${window.location.href}`;
         
         // Auto-hide after 5 seconds if not clicked
         setTimeout(() => {
-            if (btn.style.display === 'block' && this.shopAvailable) {
+            if (btn.style.display === 'block') {
                 btn.style.display = 'none';
             }
         }, 5000);
