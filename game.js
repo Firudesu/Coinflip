@@ -28,9 +28,7 @@ class CoinFlipGame {
         // Shop system
         this.maxInventorySlots = 4;
         this.inventory = new Array(this.maxInventorySlots).fill(null);
-        this.shopUnlocked = false;
-        this.shopAvailable = false; // Whether shop can be opened at current streak
-        this.lastShopStreak = 0;
+        this.shopUnlocked = true;
         this.activeEffects = {}; // Track active item effects
         this.itemRuntimeState = {
             lastFlipResult: null,
@@ -71,7 +69,8 @@ class CoinFlipGame {
         this.bank = parseInt(localStorage.getItem('bank') || '0');
         this.streakRecords = JSON.parse(localStorage.getItem('streakRecords') || '[]');
         this.achievements = JSON.parse(localStorage.getItem('achievements') || '{}');
-        this.shopUnlocked = localStorage.getItem('shopUnlocked') === 'true';
+        this.shopUnlocked = true;
+        localStorage.setItem('shopUnlocked', 'true');
         
         // Update title based on best streak
         this.updatePlayerTitle();
@@ -138,16 +137,9 @@ class CoinFlipGame {
             this.shareStreak();
         });
         
-        // Shop button - only works when shop is available
+        // Shop button
         document.getElementById('shopBtn').addEventListener('click', () => {
-            if (this.shopAvailable || this.streak === this.lastShopStreak) {
-                this.openShop();
-            } else if (!this.shopUnlocked) {
-                this.showMessage('SHOP UNLOCKS AT 5 STREAK!');
-            } else {
-                const nextShop = this.getNextShopStreak();
-                this.showMessage(`SHOP REOPENS AT STREAK ${nextShop}!`);
-            }
+            this.openShop();
         });
         
         // Floating shop button
@@ -159,7 +151,6 @@ class CoinFlipGame {
         // Close shop button - marks shop as used for this streak
         document.getElementById('closeShop').addEventListener('click', () => {
             document.getElementById('shopModal').classList.remove('show');
-            this.shopAvailable = false;  // Shop is now closed until next milestone
             document.getElementById('floatingShopBtn').style.display = 'none';
         });
         
@@ -900,26 +891,6 @@ class CoinFlipGame {
         const milestones = [5, 10, 15, 20, 25, 30, 40, 50, 75, 100];
         if (milestones.includes(this.streak)) {
             this.showStreakAnnouncement();
-        }
-        
-        // Shop unlocks at streak 5 and opens immediately
-        if (this.streak === 5 && !this.shopUnlocked) {
-            this.shopUnlocked = true;
-            this.lastShopStreak = 5;
-            localStorage.setItem('shopUnlocked', 'true');
-            this.showShopUnlock();
-            // Open shop automatically on first unlock
-            setTimeout(() => {
-                this.openShop();
-            }, 2000);
-        }
-        
-        // Shop reopens every 3 streaks after being unlocked (8, 11, 14, 17, 20, etc.)
-        if (this.shopUnlocked && this.streak > 5 && (this.streak - 5) % 3 === 0) {
-            // Shop is now available at this streak
-            this.shopAvailable = true;
-            this.lastShopStreak = this.streak;
-            this.showShopAvailable();
         }
         
         // Enable fire mode at streak 10
@@ -2184,31 +2155,11 @@ Play at: ${window.location.href}`;
 
 
     openShop() {
-        // Check if shop should be accessible
-        if (!this.shopUnlocked) {
-            this.showMessage('SHOP UNLOCKS AT 5 STREAK!');
-            return;
-        }
-        
-        if (!this.shopAvailable && this.streak !== this.lastShopStreak) {
-            const nextShop = this.getNextShopStreak();
-            this.showMessage(`SHOP REOPENS AT STREAK ${nextShop}!`);
-            return;
-        }
-        
         const modal = document.getElementById('shopModal');
         modal.classList.add('show');
         
         this.updateShopDisplay();
         this.generateShopStock();
-    }
-    
-    getNextShopStreak() {
-        if (this.streak < 5) return 5;
-        // Calculate next shop opening: 5, 8, 11, 14, 17, 20, etc.
-        const streaksSinceUnlock = this.streak - 5;
-        const nextInterval = Math.floor(streaksSinceUnlock / 3) + 1;
-        return 5 + (nextInterval * 3);
     }
     
     updateShopDisplay() {
@@ -2217,17 +2168,8 @@ Play at: ${window.location.href}`;
         
         // Update status
         const statusEl = document.getElementById('shopStatus');
-        if (this.streak >= 5 && this.streak % 5 === 0) {
-            statusEl.textContent = 'NEW ITEMS AVAILABLE!';
-            statusEl.style.color = '#4ecdc4';
-        } else if (this.streak < 5) {
-            statusEl.textContent = 'STREAK 5+ TO UNLOCK';
-            statusEl.style.color = '#ff6b6b';
-        } else {
-            const nextShop = Math.ceil(this.streak / 5) * 5;
-            statusEl.textContent = `NEXT SHOP AT ${nextShop} STREAK`;
-            statusEl.style.color = '#ff6b6b';
-        }
+        statusEl.textContent = 'SHOP OPEN 24/7 ? STOCK REFRESHES EACH VISIT';
+        statusEl.style.color = '#4ecdc4';
         
         // Update inventory display
         this.updateInventoryDisplay();
@@ -2648,7 +2590,7 @@ Play at: ${window.location.href}`;
         const btn = document.getElementById('floatingShopBtn');
         btn.style.display = 'block';
         
-        this.showMessage('SHOP UNLOCKED! BUY TACTICAL ITEMS!');
+        this.showMessage('SHOP IS NOW ALWAYS OPEN! STOCK REFRESHES OFTEN.');
         
         setTimeout(() => {
             if (btn.style.display === 'block') {
@@ -2658,7 +2600,7 @@ Play at: ${window.location.href}`;
     }
     
     showShopAvailable() {
-        this.showMessage(`SHOP OPEN NOW! STREAK ${this.streak} - CLOSES AFTER USE!`);
+        this.showMessage('SHOP OPEN! CHECK OUT THE NEW STOCK.');
         
         const btn = document.getElementById('floatingShopBtn');
         btn.querySelector('.shop-text').textContent = 'SHOP OPEN!';
@@ -2666,7 +2608,7 @@ Play at: ${window.location.href}`;
         
         // Auto-hide after 5 seconds if not clicked
         setTimeout(() => {
-            if (btn.style.display === 'block' && this.shopAvailable) {
+            if (btn.style.display === 'block') {
                 btn.style.display = 'none';
             }
         }, 5000);
